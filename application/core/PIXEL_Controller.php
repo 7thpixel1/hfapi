@@ -19,6 +19,7 @@ class PIXEL_Controller extends CI_Controller {
 
     public function __construct() {
         parent::__construct();
+        $this->pageLimit=2;
         
     }
     public function loadModel($model) {

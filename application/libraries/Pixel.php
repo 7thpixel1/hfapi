@@ -13,7 +13,11 @@
  */
 class Pixel {
 
-    
+    public static $INACTIVE = 0;
+    public static $ACTIVE = 1;
+    public static $YES = 1;
+    public static $NO = 0;
+    public static $ZERO = 0;
     public static $REGEX_SAFE_NO_TAG = 'A-Za-z0-9±ÀÂÆÇÈÉÊËÎÏÔŒÙÛÜŸàâæçèéêëîïôœùûüÿğŞşöÖĞiİı“”~«»–—œ™®©:,\x22\^\{\}\[\]\.\-_=;!\+@\$\*\?#%&\/\(\)\'\s' . "\\\\";
     public static $REGEX_SAFE_ALPHANUMERIC = 'A-Za-z0-9±ÀÂÆÇÈÉÊËÎÏÔŒÙÛÜŸàâæçèéêëîïôœùûüÿğŞşöÖĞiİ:\.\-_\'\s';
     public static $REGEX_SAFE_ALPHA = 'A-Za-zÀÂÆÇÈÉÊËÎÏÔŒÙÛÜŸàâæçèéêëîïôœùûüÿğŞşöÖĞiİ:\.\-_\'\s';
@@ -351,6 +355,8 @@ class Pixel {
 
         return $res;
     }
-
+    public static function clean($string) {
+        return preg_replace('/[^A-Za-z0-9\-\_\.@]/', '', $string); // Removes special chars.
+    }
     
 }
