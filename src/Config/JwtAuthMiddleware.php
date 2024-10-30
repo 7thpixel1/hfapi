@@ -14,9 +14,10 @@ use App\Config\ApiResponse;
 class JwtAuthMiddleware implements MiddlewareInterface {
 
     private $secretKey;
-
-    public function __construct($secretKey) {
+    private $serverToken;
+    public function __construct($secretKey, $serverToken) {
         $this->secretKey = $secretKey;
+        $this->serverToken = $serverToken;
     }
 
     public function process(Request $request, RequestHandlerInterface $handler): Response {
@@ -30,11 +31,19 @@ class JwtAuthMiddleware implements MiddlewareInterface {
 
         if (preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
             $jwt = $matches[1];
+            // Check if the token matches the server-level token
+            if ($jwt === $this->serverToken) {
+                // Allow access without user authentication
+                $request = $request->withAttribute('auth_type', 'server')->withAttribute('user_id', 0);
+                return $handler->handle($request);
+            }
             try {
-                // Decode JWT
+                
                 $decoded = JWT::decode($jwt, new Key($this->secretKey, 'HS256'));
                 $user_id = $decoded->user_id;
-                $request = $request->withAttribute('user_id', $user_id);
+                $request = $request
+                        ->withAttribute('auth_type', 'user')
+                        ->withAttribute('user_id', $user_id);
                 
                 return $handler->handle($request);
             } catch (\Exception $e) {

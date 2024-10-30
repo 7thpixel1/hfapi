@@ -15,8 +15,9 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                 font-family:sans-serif;
                 font-size:12px!important;
                 color:#333!important;
-                background: #FFF;
+                
                 margin-bottom: 0px;
+                
                 
             }
             table {
@@ -27,6 +28,10 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
             th, td {
                 padding: 5px; /* Control padding for uniformity */
                 border: 0px; /* Border to differentiate table sections */
+            }
+            .b-top {
+               
+                border-top: 1px solid #ccc; /* Border to differentiate table sections */
             }
 
             th {
@@ -58,7 +63,7 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
         </style>
     </head>
     <body>
-        <table style="padding:0px;" cellspacing="0" border="0" >
+        <table style="padding:0px; background-image: url('./assets/images/duplicate.png'); background: no-repeat center center;" cellspacing="0" border="0" >
             <tr>
                 <td>
                     <table cellpadding="0" cellspacing="0" border="0" >
@@ -137,19 +142,19 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                                     <tbody>
                                         <?php foreach ($children as $child): ?>
                                             <tr>
-                                                <td class="text-left"><?php echo ($child->name) ?></td>
-                                                <td class="text-right"><?php echo App\Config\Pixel::formatCurrency($child->amount) ?></td>
-                                                <td class="text-right"><?php echo App\Config\Pixel::formatCurrency($child->non_eligible_amount) ?></td>
-                                                <td class="text-right">&nbsp; <?php echo App\Config\Pixel::formatCurrency($child->eligible_amount) ?> &nbsp;</td>
+                                                <td class="text-left b-top"><?php echo ($child->name) ?></td>
+                                                <td class="text-right b-top"><?php echo App\Config\Pixel::formatCurrency($child->amount) ?></td>
+                                                <td class="text-right b-top"><?php echo App\Config\Pixel::formatCurrency($child->non_eligible_amount) ?></td>
+                                                <td class="text-right b-top">&nbsp; <?php echo App\Config\Pixel::formatCurrency($child->eligible_amount) ?> &nbsp;</td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td  class="text-left">Total Amount</td>
-                                            <td class="text-right"><?php echo App\Config\Pixel::formatCurrency($donation->amount) ?></td>
-                                            <td class="text-right"><?php echo App\Config\Pixel::formatCurrency($donation->non_eligible_amount) ?></td>
-                                            <td class="text-right">&nbsp; <?php echo App\Config\Pixel::formatCurrency($donation->eligible_amount) ?> &nbsp;</td>
+                                            <td  class="text-left b-top">Total Amount</td>
+                                            <td class="text-right b-top"><?php echo App\Config\Pixel::formatCurrency($donation->amount) ?></td>
+                                            <td class="text-right b-top"><?php echo App\Config\Pixel::formatCurrency($donation->non_eligible_amount) ?></td>
+                                            <td class="text-right b-top">&nbsp; <?php echo App\Config\Pixel::formatCurrency($donation->eligible_amount) ?> &nbsp;</td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -159,7 +164,7 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                             <td colspan="2" style="height: 7px;"></td>
                         </tr>
                         <tr>
-                            <td colspan="2" style="<?php echo $commonCss; ?>"><?php echo ('comments') ?>:<br><?php echo ($donation->comments) ?></td>
+                            <td colspan="2" ><?php echo ('comments') ?>:<br><?php echo ($donation->comments) ?></td>
                         </tr>
 
                         <tr>
@@ -174,6 +179,5 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                 </td>
             </tr>
         </table>
-
     </body>
 </html>

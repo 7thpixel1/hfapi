@@ -72,7 +72,7 @@ class PixelModel {
 
     public function isAuthorized($username, $password) {
         $sql = "SELECT * FROM donors WHERE email = :username AND status = :status AND can_login = :can_login";
-        
+
         $params = [
             ':username' => $username,
             ':status' => 1,
@@ -80,7 +80,7 @@ class PixelModel {
         ];
         $this->db->query($sql, $params);
         $user = $this->db->fetch();
-        
+
         if ($user && $this->verifyPassword($password, $user['password_hash'])) {
             unset($user['password_hash']);
             return $user;
@@ -181,7 +181,25 @@ class PixelModel {
 
         $this->db->query($sql, ['donor_id' => $donor_id]);
         return $this->db->fetchObject() ?: null;
-        
+    }
+
+    public function getDonorByEmailPostalCode($email, $postal_code) {
+        $cleaned_postal_code = substr(str_replace(' ', '', $postal_code), 0, 3);
+        $sql = "SELECT a.id, a.title, a.address1, a.address2, a.refrence_id, a.home_phone, 
+                        a.id AS value, a.email, a.postal_code, 
+                        CONCAT(a.last_name, ', ', a.first_name) AS label, 
+                        a.middle_name, a.last_name, a.first_name, 
+                        b.name AS city_name, c.name AS province, d.name AS country 
+                FROM donors a
+                JOIN cities b ON a.city_id = b.id
+                JOIN provinces c ON a.state_id = c.id
+                JOIN countries d ON a.country_id = d.id
+                WHERE (a.email = :email OR email_2 = :email) AND LEFT(REPLACE(a.postal_code, ' ', ''), 3) = :postal_code 
+                ORDER BY a.can_login desc
+                LIMIT 1";
+
+        $this->db->query($sql, ['email' => $email, 'postal_code' => $cleaned_postal_code]);
+        return $this->db->fetchObject() ?: null;
     }
 
     public function getReceipt($receipt_id) {
@@ -191,10 +209,8 @@ class PixelModel {
                 WHERE a.id = :receipt_id 
                 LIMIT 1";
 
-        
         $this->db->query($sql, ['receipt_id' => $receipt_id]);
         return $this->db->fetchObject() ?: null;
-        
     }
 
     public function getChildren($id) {
@@ -284,9 +300,7 @@ class PixelModel {
                     VALUES (:amount, :eligible_amount, :non_eligible_amount, 
                             :created_by, :donor_id, :receipt_id, 
                             :project_id, :batch_id, :status, :issuer_name, :parent_id)";
-
-            $stmt = $this->db->query($sql);
-            $stmt->execute([
+            $params = [
                 'amount' => $data['amount'],
                 'eligible_amount' => $data['eligible_amount'],
                 'non_eligible_amount' => $data['non_eligible_amount'],
@@ -298,8 +312,8 @@ class PixelModel {
                 'status' => $data['status'],
                 'issuer_name' => $data['issuer_name'],
                 'parent_id' => $data['parent_id']
-            ]);
-
+            ];
+            $this->db->query($sql, $params);
             $this->db->commit();
             return $this->db->lastInsertId();
         } catch (PDOException $e) {
@@ -321,9 +335,7 @@ class PixelModel {
                             status = :status, 
                             issuer_name = :issuer_name 
                     WHERE id = :id AND donor_id = :donor_id";
-
-            $stmt = $this->db->query($sql);
-            $stmt->execute([
+            $params = [
                 'amount' => $data['amount'],
                 'eligible_amount' => $data['eligible_amount'],
                 'non_eligible_amount' => $data['non_eligible_amount'],
@@ -335,14 +347,322 @@ class PixelModel {
                 'issuer_name' => $data['issuer_name'],
                 'id' => $data['id'],
                 'donor_id' => $data['donor_id']
-            ]);
+            ];
+            $this->db->query($sql, $params);
 
             $this->db->commit();
-            return $stmt->rowCount();
+            return $this->db->rowCount();
         } catch (PDOException $e) {
             $this->db->rollBack();
             throw $e; // re-throw the exception for handling upstream
         }
+    }
+
+    /* Payment */
+
+    public function saveTransactionHistory(array $transactionData): bool {
+        $sql = "INSERT INTO global_payment_history (
+                    donor_id, donation_id, auth_amount, avail_balance, avs_code, balance_amt, 
+                    batch_ref, card_type, card_last4, trans_type, ref_num, resp_code, resp_msg, 
+                    created_date, trans_auth_code, trans_id, fraud_mode, fraud_result, fraud_rule_1_key, 
+                    fraud_rule_1_desc, fraud_rule_1_result, card_result, card_cvv_result, card_last4_detail, 
+                    card_brand, card_avs_code, meta_info
+                ) VALUES (
+                    :donor_id, :donation_id, :auth_amount, :avail_balance, :avs_code, :balance_amt, 
+                    :batch_ref, :card_type, :card_last4, :trans_type, :ref_num, :resp_code, :resp_msg, 
+                    :timestamp, :trans_auth_code, :trans_id, :fraud_mode, :fraud_result, :fraud_rule_1_key, 
+                    :fraud_rule_1_desc, :fraud_rule_1_result, :card_result, :card_cvv_result, :card_last4_detail, 
+                    :card_brand, :card_avs_code, :meta_info
+                )";
+        // Binding the data to the prepared statement
+        $params = [
+            ':donor_id' => $transactionData['donorId'],
+            ':donation_id' => $transactionData['donationId'],
+            ':auth_amount' => $transactionData['authorizedAmount'] ?? null,
+            ':avail_balance' => $transactionData['availableBalance'] ?? null,
+            ':avs_code' => $transactionData['avsResponseCode'] ?? null,
+            ':balance_amt' => $transactionData['balanceAmount'] ?? null,
+            ':batch_ref' => $transactionData['batchSummary_batchReference'] ?? null,
+            ':card_type' => $transactionData['cardType'] ?? null,
+            ':card_last4' => $transactionData['cardLast4'] ?? null,
+            ':trans_type' => $transactionData['originalTransactionType'] ?? null,
+            ':ref_num' => $transactionData['referenceNumber'] ?? null,
+            ':resp_code' => $transactionData['responseCode'] ?? null,
+            ':resp_msg' => $transactionData['responseMessage'] ?? null,
+            ':timestamp' => $transactionData['timestamp'] ?? null,
+            ':trans_auth_code' => $transactionData['transactionReference_authCode'] ?? null,
+            ':trans_id' => $transactionData['transactionReference_transactionId'] ?? null,
+            ':fraud_mode' => $transactionData['fraudFilterResponse_fraudResponseMode'] ?? null,
+            ':fraud_result' => $transactionData['fraudFilterResponse_fraudResponseResult'] ?? null,
+            ':fraud_rule_1_key' => $transactionData['fraudFilterResponse_fraudResponseRules_0_key'] ?? null,
+            ':fraud_rule_1_desc' => $transactionData['fraudFilterResponse_fraudResponseRules_0_description'] ?? null,
+            ':fraud_rule_1_result' => $transactionData['fraudFilterResponse_fraudResponseRules_0_result'] ?? null,
+            ':card_result' => $transactionData['cardIssuerResponse_result'] ?? null,
+            ':card_cvv_result' => $transactionData['cardIssuerResponse_cvvResult'] ?? null,
+            ':card_last4_detail' => $transactionData['cardDetails_maskedNumberLast4'] ?? null,
+            ':card_brand' => $transactionData['cardDetails_brand'] ?? null,
+            ':card_avs_code' => $transactionData['cardDetails_avsResponseCode'] ?? null
+        ];
+        $this->db->query($sql, $params);
+    }
+
+    public function saveDonor($donor) {
+        try {
+            // Start a transaction
+            $this->db->beginTransaction();
+
+            $sql = "INSERT INTO donors (title, first_name, last_name, business_name, date_of_birth, gender, address1, 
+                                         address2, city_id, state_id, country_id, postal_code,  email, cell, type, source, 
+                                         branch_id, reference_id, created_date, created_by, status, 
+                                         password_hash, can_login, email_status, last_login, meta_info) 
+                    VALUES (:title, :first_name, :last_name, :business_name, :date_of_birth, :gender, :address1, 
+                            :address2, :city_id, :state_id, :country_id, :postal_code, 
+                            :email, :cell, :type, :source, :branch_id, :reference_id, 
+                            :created_date, :created_by, :status, :password_hash, :can_login, 
+                            :email_status, :last_login, :meta_info)";
+
+            $params = [
+                'title' => $donor->title,
+                'first_name' => $donor->first_name,
+                'last_name' => $donor->last_name,
+                'business_name' => $donor->business_name,
+                'date_of_birth' => $donor->date_of_birth,
+                'gender' => $donor->gender,
+                'address1' => $donor->address1,
+                'address2' => $donor->address2,
+                'city_id' => $donor->city_id,
+                'state_id' => $donor->state_id,
+                'country_id' => $donor->country_id,
+                'postal_code' => $donor->postal_code,
+                'email' => $donor->email,
+                'cell' => $donor->cell,
+                'type' => $donor->type,
+                'source' => '2',
+                'branch_id' => $donor->branch_id,
+                'reference_id' => $donor->reference_id,
+                'created_date' => date('Y-m-d H:i:s'), // Current timestamp
+                'created_by' => 1,
+                'status' => $donor->status,
+                'password_hash' => $donor->password_hash,
+                'can_login' => 1,
+                'email_status' => 0,
+                'last_login' => $donor->last_login,
+                'meta_info' => $donor->meta_info
+            ];
+
+            // Execute the query
+            $this->db->query($sql, $params);
+
+            // Commit the transaction
+            $this->db->commit();
+
+            // Set the ID of the donor object
+            $this->id = $this->db->lastInsertId();
+            return $this->id;
+        } catch (PDOException $e) {
+            // Rollback the transaction in case of an error
+            $this->db->rollBack();
+            throw $e; // Re-throw the exception for handling upstream
+        }
+    }
+
+    public function getReceiptId() {
+        // First, try to get the minimum receipt ID
+        $sql = "SELECT IFNULL(MIN(id), 0) AS receipt_id 
+                FROM receipt 
+                WHERE book_id = :book_id AND status = 0 
+                LIMIT 1";
+
+        $this->db->query($sql, ['book_id' => 1]);
+        $receipt = $this->db->fetchObject();
+
+        if ($receipt !== null && (int) $receipt->receipt_id > 0) {
+            return (int) $receipt->receipt_id;
+        }
+        $newReceiptId = $this->insertNewReceipt();
+        return $newReceiptId;
+    }
+
+    private function insertNewReceipt() {
+        $sql = "INSERT INTO receipt (book_id, issued_to, number, issued_date, created_date, created_by, modified_date, modified_by) 
+                VALUES (:book_id, :issued_to, :number, :issued_date, :created_date, :created_by, :modified_date, :modified_by)";
+
+        $this->db->query($sql, [
+            'book_id' => 1,
+            'issued_to' => 1,
+            'number' => (int) $this->getMaxLeafNumber(1) + 1,
+            'issued_date' => date("Y-m-d H:i:s"),
+            'created_date' => date("Y-m-d H:i:s"),
+            'created_by' => 1,
+            'modified_date' => date("Y-m-d H:i:s"),
+            'modified_by' => 1
+        ]);
+
+        return $this->db->lastInsertId();
+    }
+
+    private function getMaxLeafNumber($id) {
+        $sql = "SELECT IFNULL(MAX(CONVERT(number, SIGNED INTEGER)), 0) AS max 
+                FROM receipt 
+                WHERE book_id = :book_id 
+                LIMIT 1";
+
+        $this->db->query($sql, ['book_id' => $id]);
+        $receipt = $this->db->fetchObject();
+
+        if ($receipt !== null) {
+            return $receipt->max;
+        }
+    }
+
+    public function addDonation($object) {
+        $children = $object->children;
+        unset($object->children);
+        $object->parent_id = 0;
+
+        // Start a transaction
+        try {
+            $this->db->beginTransaction();
+
+            // Insert the main donation
+            $sql = "INSERT INTO donations (amount,donor_id, non_eligible_amount, eligible_amount, sum_of_string, project_id, parent_id, created_date, created_by, receipt_id, receipt_date
+                ,deposit_type,batch_id, status,cheque_trans_no,address1, address2, city_id, state_id, country_id, postal_code, email, home_phone, is_online) 
+                    VALUES (:amount,:donor_id, :non_eligible_amount, :eligible_amount, :sum_of_string, :project_id, :parent_id, :created_date, :created_by, :receipt_id,:receipt_date,
+                    :deposit_type,:batch_id, :status,:cheque_trans_no,:address1, :address2, :city_id, :state_id, :country_id, :postal_code, :email, :home_phone, :is_online)";
+            $param = [
+                'amount' => $object->amount,
+                'donor_id' => $object->donor_id,
+                'non_eligible_amount' => $object->non_eligible_amount,
+                'eligible_amount' => $object->eligible_amount,
+                'sum_of_string' => $object->sum_of_string,
+                'project_id' => 0,
+                'parent_id' => $object->parent_id,
+                'created_date' => $object->created_date,
+                'created_by' => $object->created_by,
+                'receipt_id' => $object->receipt_id,
+                'receipt_date' => $object->receipt_date,
+                'deposit_type' => $object->deposit_type,
+                'batch_id' => $object->batch_id,
+                'status' => $object->status,
+                'cheque_trans_no' => $object->cheque_trans_no,
+                'address1' => $object->address1,
+                'address2' => $object->address2,
+                'city_id' => $object->city_id,
+                'state_id' => $object->state_id,
+                'country_id' => $object->country_id,
+                'postal_code' => $object->postal_code,
+                'email' => $object->email,
+                'home_phone' => $object->home_phone,
+                'is_online' => $object->is_online
+            ];
+            $this->db->query($sql, $param);
+            $object->parent_id = $this->db->lastInsertId();
+
+            // Insert each child donation
+            foreach ($children as $item) {
+                $child = (object) $item;
+                $sqlChild = "INSERT INTO donations (amount,donor_id, non_eligible_amount, eligible_amount, sum_of_string, project_id, parent_id, created_date, created_by, receipt_id, receipt_date
+                ,deposit_type,batch_id, status,cheque_trans_no,address1, address2, city_id, state_id, country_id, postal_code, email, home_phone, is_online) 
+                    VALUES (:amount,:donor_id, :non_eligible_amount, :eligible_amount, :sum_of_string, :project_id, :parent_id, :created_date, :created_by, :receipt_id,:receipt_date,
+                    :deposit_type,:batch_id, :status,:cheque_trans_no,:address1, :address2, :city_id, :state_id, :country_id, :postal_code, :email, :home_phone, :is_online)";
+
+                $this->db->query($sqlChild,
+                        [
+                            'amount' => $child->amount,
+                            'donor_id' => $object->donor_id,
+                            'non_eligible_amount' => $child->non_eligible_amount,
+                            'eligible_amount' => $child->eligible_amount,
+                            'sum_of_string' => $child->sum_of_string,
+                            'project_id' => $child->project_id,
+                            'parent_id' => $object->parent_id,
+                            'created_date' => $object->created_date,
+                            'created_by' => $object->created_by,
+                            'receipt_id' => $object->receipt_id,
+                            'receipt_date' => $object->receipt_date,
+                            'deposit_type' => $object->deposit_type,
+                            'batch_id' => $object->batch_id,
+                            'status' => $object->status,
+                            'cheque_trans_no' => $object->cheque_trans_no,
+                            'address1' => $object->address1,
+                            'address2' => $object->address2,
+                            'city_id' => $object->city_id,
+                            'state_id' => $object->state_id,
+                            'country_id' => $object->country_id,
+                            'postal_code' => $object->postal_code,
+                            'email' => $object->email,
+                            'home_phone' => $object->home_phone,
+                            'is_online' => $object->is_online
+                        ]
+                );
+            }
+
+            // Update the receipt status
+            $sqlUpdateReceipt = "UPDATE receipt 
+                                 SET status = 1, modified_date = :modified_date, modified_by = :modified_by 
+                                 WHERE id = :receipt_id AND status = 0";
+
+            $this->db->query($sqlUpdateReceipt, [
+                'modified_date' => $object->created_date,
+                'modified_by' => $object->created_by,
+                'receipt_id' => $object->receipt_id
+            ]);
+
+            // Call the method to insert donation match
+            $this->insertDonationMatch($object->parent_id);
+
+            // Commit the transaction
+            $this->db->commit();
+            return true;
+        } catch (PDOException $e) {
+            // Rollback the transaction in case of an error
+            $this->db->rollBack();
+            throw $e; // Re-throw the exception for handling upstream
+        }
+    }
+
+    public function insertDonationMatch($donation_id) {
+        // Prepare the SQL statement to select matching pledges
+        $sql = "SELECT p.*, d.id AS donation_id 
+                FROM pledges p
+                JOIN donations d ON d.donor_id = p.donor_id 
+                AND d.project_id = p.project_id 
+                AND d.receipt_date BETWEEN p.pledge_date AND p.due_date 
+                WHERE d.parent_id = :donation_id";
+
+        $this->db->query($sql, ['donation_id' => $donation_id]);
+        $items = $this->db->fetchAllObjects();
+
+        // Check if there are any matching items
+        if (count($items) > 0) {
+            foreach ($items as $item) {
+                // Delete existing match logs for the donation
+                $this->deleteDonationMatchLog($item->donation_id);
+
+                // Prepare the match object
+                $matchObj = [
+                    "donation_id" => $item->donation_id,
+                    "type" => $item->type,
+                    "pledge_id" => $item->id,
+                    "matched_by" => '1', // Assuming '1' is the ID of the user who matched
+                    "matched_date" => date('Y-m-d H:i:s')
+                ];
+
+                // Insert the new match log
+                $this->insertDonationMatchLog($matchObj);
+            }
+        }
+    }
+
+    private function deleteDonationMatchLog($donation_id) {
+        $sql = "DELETE FROM donations_match_logs WHERE donation_id = :donation_id";
+        $this->db->query($sql, ['donation_id' => $donation_id]);
+    }
+
+    private function insertDonationMatchLog($matchObj) {
+        $sql = "INSERT INTO donations_match_logs (donation_id, type, pledge_id, matched_by, matched_date) 
+                VALUES (:donation_id, :type, :pledge_id, :matched_by, :matched_date)";
+
+        $this->db->query($sql, $matchObj);
     }
 }
 

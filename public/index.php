@@ -8,6 +8,7 @@ use App\Config\JwtAuthMiddleware;
 use App\Models\PixelModel;
 use App\Controllers\DonationController;
 use App\Controllers\AuthController;
+use App\Controllers\PaymentController;
 use Dotenv\Dotenv;
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -32,25 +33,33 @@ $container->set(AuthController::class, function($c) {
     // Return new AuthController with injected PixelModel
     return new AuthController($c->get(PixelModel::class));
 });
+$container->set(PaymentController::class, function($c) {
+    // Return new AuthController with injected PixelModel
+    return new PaymentController($c->get(PixelModel::class));
+});
 
 
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 
-$jwtMiddleware = new JwtAuthMiddleware($_ENV['secret_key']);
+$jwtMiddleware = new JwtAuthMiddleware($_ENV['secret_key'], $_ENV['server_token']);
 
 
 
 $app->get('/', function (Request $request, Response $response, $args) {
-    $response->getBody()->write("Hello world!");
+    $response->getBody()->write("HF API!");
     return $response;
 });
 
 
-
-$app->post('/login', [AuthController::class, 'login']);
+$app->get('/server-token', [AuthController::class, 'serverToken']);
+$app->post('/login', [AuthController::class, 'login'])->add($jwtMiddleware);
 $app->get('/donations[/{page}]', [DonationController::class, 'getDonations'])->add($jwtMiddleware);
 $app->get('/donation/{donation_id}', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
+
+$app->post('/donate', [PaymentController::class, 'donate'])->add($jwtMiddleware);
+$app->post('/donate-now', [PaymentController::class, 'processSales'])->add($jwtMiddleware);
+
 
 
 //$app->get('/donations[/{page}]', [DonationController::class, 'getDonations']);

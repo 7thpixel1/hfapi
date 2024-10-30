@@ -64,6 +64,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'globalpayments/php-sdk' => array(
+            'pretty_version' => '13.0.3',
+            'version' => '13.0.3.0',
+            'reference' => 'fe6d4f35a76f11164fe2c4b812fc98c3f696c7ae',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../globalpayments/php-sdk',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'graham-campbell/result-type' => array(
             'pretty_version' => 'v1.1.3',
             'version' => '1.1.3.0',
@@ -468,9 +477,9 @@
             'dev_requirement' => false,
         ),
         'symfony/translation' => array(
-            'pretty_version' => 'v6.4.12',
-            'version' => '6.4.12.0',
-            'reference' => 'cf8360b8352b086be620fae8342c4d96e391a489',
+            'pretty_version' => 'v6.4.13',
+            'version' => '6.4.13.0',
+            'reference' => 'bee9bfabfa8b4045a66bf82520e492cddbaffa66',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/translation',
             'aliases' => array(),

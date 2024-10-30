@@ -24,10 +24,10 @@ class AuthController {
         $password = $body['password'];
 
         $donor = $this->model->isAuthorized($username, $password);
-        
+
         if ($donor !== null) {
             $issuedAt = time();
-            $expirationTime = $issuedAt + (3600 * (int)$_ENV['TOKEN_LIFE']);
+            $expirationTime = $issuedAt + (3600 * (int) $_ENV['TOKEN_LIFE']);
             $payload = [
                 'iat' => $issuedAt,
                 'exp' => $expirationTime,
@@ -42,5 +42,16 @@ class AuthController {
 
         $response->getBody()->write(json_encode(ApiResponse::unauthorized()));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+    }
+
+    public function serverToken(Request $request, Response $response) {
+        $secretKey = $_ENV['secret_key'];
+        $payload = [
+            'role' => 'server',
+            'type' => 'non-expiring'
+        ];
+        $serverToken = JWT::encode($payload, $secretKey, 'HS256');
+        $response->getBody()->write(json_encode(['server_token' => $serverToken]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
     }
 }

@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Config;
+
 /**
  * Description of Pixel
  *
@@ -26,7 +28,6 @@ class Pixel {
     public static $REGEX_MODEL = 'A-Za-z0-9ÀÂÆÇÈÉÊËÎÏÔŒÙÛÜŸàâæçèéêëîïôœùûüÿğŞşöÖĞiİ\-\s\.';
     public static $REGEX_NUMBER_AND_FLOAT = '\d*\.?\d*';
     public static $REGEX_USERNAME = 'A-Za-z0-9\-_=!\.@';
-    
 
     public static function echoString($str) {
         echo Pixel::String($str);
@@ -57,8 +58,6 @@ class Pixel {
                 return date('j M Y H:i', $date);
         }
     }
-
-    
 
     public static function getSanitizedIP($ip = "") {
         $ip = (empty($ip)) ? ($_SERVER['REMOTE_ADDR'] ?? NULL) : $ip;
@@ -220,8 +219,6 @@ class Pixel {
         return ((int) $val === Pixel::$YES) ? 'checked=""' : '';
     }
 
-    
-
     public static function groupByArrayJSON($array, $group_key) {
         $arr = array();
         if (is_array($array)) {
@@ -249,8 +246,6 @@ class Pixel {
         return $arr;
     }
 
-    
-
     public static function pivotArraySimple($array, $group_key, $value) {
         $arr = array();
         if (is_array($array)) {
@@ -273,10 +268,11 @@ class Pixel {
         }
         return $arr;
     }
-    
+
     public static function clean($string) {
         return preg_replace('/[^A-Za-z0-9\-\_\.@]/', '', $string); // Removes special chars.
     }
+
     public static function renderView($filePath, $data = []) {
         if (is_array($data)) {
             extract($data);
@@ -285,5 +281,17 @@ class Pixel {
         include $filePath;
         return ob_get_clean();
     }
-    
+
+    public static function flattenObject($obj, $prefix = '') {
+        $result = [];
+        foreach ($obj as $key => $value) {
+            $fullKey = $prefix ? $prefix . '_' . $key : $key;
+            if (is_object($value) || is_array($value)) {
+                $result = array_merge($result, self::flattenObject($value, $fullKey));
+            } else {
+                $result[$fullKey] = $value;
+            }
+        }
+        return $result;
+    }
 }

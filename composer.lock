@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "528f05e9fcdf193ada01e18c56dc9ba4",
+    "content-hash": "e3ed54464588d369fd049cbfb5ab4f79",
     "packages": [
         {
             "name": "brick/math",
@@ -344,6 +344,59 @@
                 "source": "https://github.com/firebase/php-jwt/tree/v6.10.1"
             },
             "time": "2024-05-18T18:05:11+00:00"
+        },
+        {
+            "name": "globalpayments/php-sdk",
+            "version": "13.0.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/globalpayments/php-sdk.git",
+                "reference": "fe6d4f35a76f11164fe2c4b812fc98c3f696c7ae"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/globalpayments/php-sdk/zipball/fe6d4f35a76f11164fe2c4b812fc98c3f696c7ae",
+                "reference": "fe6d4f35a76f11164fe2c4b812fc98c3f696c7ae",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-dom": "*",
+                "ext-fileinfo": "*",
+                "ext-intl": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "ext-openssl": "*",
+                "ext-zlib": "*",
+                "php": ">= 8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^0.12",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ~9.4",
+                "squizlabs/php_codesniffer": "2.*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "GlobalPayments\\Api\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Heartland Payment Systems"
+                }
+            ],
+            "description": "PHP SDK for processing payments with Global Payments, including Heartland Payment Systems and Realex Payments",
+            "homepage": "https://developer.heartlandpaymentsystems.com/documentation",
+            "support": {
+                "issues": "https://github.com/globalpayments/php-sdk/issues",
+                "source": "https://github.com/globalpayments/php-sdk/tree/13.0.3"
+            },
+            "time": "2024-10-15T12:39:58+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -3002,16 +3055,16 @@
         },
         {
             "name": "symfony/translation",
-            "version": "v6.4.12",
+            "version": "v6.4.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/translation.git",
-                "reference": "cf8360b8352b086be620fae8342c4d96e391a489"
+                "reference": "bee9bfabfa8b4045a66bf82520e492cddbaffa66"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/translation/zipball/cf8360b8352b086be620fae8342c4d96e391a489",
-                "reference": "cf8360b8352b086be620fae8342c4d96e391a489",
+                "url": "https://api.github.com/repos/symfony/translation/zipball/bee9bfabfa8b4045a66bf82520e492cddbaffa66",
+                "reference": "bee9bfabfa8b4045a66bf82520e492cddbaffa66",
                 "shasum": ""
             },
             "require": {
@@ -3077,7 +3130,7 @@
             "description": "Provides tools to internationalize your application",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/translation/tree/v6.4.12"
+                "source": "https://github.com/symfony/translation/tree/v6.4.13"
             },
             "funding": [
                 {
@@ -3093,7 +3146,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-16T06:02:54+00:00"
+            "time": "2024-09-27T18:14:25+00:00"
         },
         {
             "name": "symfony/translation-contracts",

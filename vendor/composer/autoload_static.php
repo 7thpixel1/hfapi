@@ -91,6 +91,7 @@ class ComposerStaticInit43c43a01c7335350cbbdbb77a20f1ce6
         array (
             'GuzzleHttp\\Psr7\\' => 16,
             'GrahamCampbell\\ResultType\\' => 26,
+            'GlobalPayments\\Api\\' => 19,
         ),
         'F' => 
         array (
@@ -253,6 +254,10 @@ class ComposerStaticInit43c43a01c7335350cbbdbb77a20f1ce6
         'GrahamCampbell\\ResultType\\' => 
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
+        ),
+        'GlobalPayments\\Api\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/globalpayments/php-sdk/src',
         ),
         'Firebase\\JWT\\' => 
         array (
