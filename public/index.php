@@ -59,6 +59,7 @@ $app->get('/donation/{donation_id}', [DonationController::class, 'getDonation'])
 
 $app->post('/donate', [PaymentController::class, 'donate'])->add($jwtMiddleware);
 $app->post('/donate-now', [PaymentController::class, 'processSales'])->add($jwtMiddleware);
+$app->post('/save-card', [PaymentController::class, 'saveCard'])->add($jwtMiddleware);
 
 
 

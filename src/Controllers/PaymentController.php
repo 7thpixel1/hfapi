@@ -6,6 +6,9 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\PixelModel;
 use App\Config\ApiResponse;
+use GuzzleHttp\Client;
+use DateTime;
+use DateTimeZone;
 use GlobalPayments\Api\ServiceConfigs\Gateways\GpApiConfig;
 use GlobalPayments\Api\ServicesContainer;
 use GlobalPayments\Api\Entities\Exceptions\ApiException;
@@ -19,10 +22,12 @@ use GlobalPayments\Api\Entities\GpApi\AccessTokenInfo;
 
 class PaymentController {
 
-    private $model;
+    private $model, $_errorMessage, $_api_url, $_gp_ver;
 
     public function __construct(PixelModel $model) {
         $this->model = $model;
+        $this->_api_url = $_ENV['GP_URL'];
+        $this->_gp_ver = $_ENV['GP_VER'];
         $this->initGateway();
     }
 
@@ -40,6 +45,108 @@ class PaymentController {
         $config->merchantContactUrl = "https://www.example.com/about";
 
         ServicesContainer::configureService($config, "default");
+    }
+
+    public function generateNonce() {
+        $dateTime = new DateTime("now", new DateTimeZone("UTC"));
+        return $dateTime->format("Y-m-d\TH:i:s.v\Z");
+    }
+
+    public function generateSecret($nonce, $appKey) {
+
+        $data = $nonce . $appKey;
+        return hash('sha512', $data);
+    }
+
+    private function getAccessToken() {
+        $appId = $_ENV['GP_APP_ID'];
+        $appKey = $_ENV['GP_API_KEY'];
+
+        $nonce = $this->generateNonce();
+        $secret = $this->generateSecret($nonce, $appKey);
+
+        $client = new Client();
+        $url = $this->_api_url . "accesstoken";
+
+        $body = [
+            'app_id' => $appId,
+            'nonce' => $nonce,
+            'secret' => $secret,
+            'grant_type' => 'client_credentials',
+        ];
+
+        try {
+
+            $response = $client->post($url, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'X-GP-Version' => $this->_gp_ver,
+                ],
+                'json' => $body,
+            ]);
+
+            return json_decode($response->getBody(), true);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+
+            if ($e->hasResponse()) {
+                $this->_errorMessage = $e->getResponse()->getBody()->getContents();
+            } else {
+                $this->_errorMessage = $e->getMessage();
+            }
+            return null;
+        }
+    }
+
+    public function saveCard(Request $request, Response $response, $args) {
+
+        $client = new Client();
+        $data = json_decode($request->getBody(), true);
+        
+        $url = $this->_api_url . "payment-methods";
+        $bearerToken = $this->model->getActiveApiToken();
+
+        if ($bearerToken === null) {
+            $newTokenResponse = $this->getAccessToken();
+            if ($newTokenResponse) {
+                $token = $newTokenResponse['token'];
+                $secondsToExpire = (int) $newTokenResponse['seconds_to_expire'] - 600;
+                $expiresAt = date("Y-m-d H:i:s", time() + $secondsToExpire);
+                $this->model->insertApiToken($token, $expiresAt);
+                $bearerToken = $token;
+            } else {//return 
+                $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Token Generation error"])));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+        }
+
+        $body = [
+            "reference" => $data['reference'],
+            "usage_mode" => "MULTIPLE",
+            "card" => $data['card']
+        ];
+
+        try {
+            // Make the POST request
+            $res = $client->post($url, [
+                'headers' => [
+                    'Authorization' => "Bearer $bearerToken",
+                    'Content-Type' => 'application/json',
+                    'X-GP-Version' => $this->_gp_ver,
+                ],
+                'json' => $body,
+            ]);
+
+            // Parse and return the response
+            $Obj = json_decode($res->getBody(), true);
+            $response->getBody()->write(json_encode(ApiResponse::success($Obj)));
+            return $response->withHeader('Content-Type', 'application/json');
+            
+            
+            
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Card Save Error: " . $e->getMessage()])));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
     }
 
     public function processSales(Request $request, Response $response, $args) {
@@ -81,7 +188,7 @@ class PaymentController {
         $donation->home_phone = $data['phone'];
         $donation->sum_of_string = $data['sum_of_string'];
         $donation->receipt_id = $this->model->getReceiptId();
-        
+
         //Payment
         $card = new CreditCardData();
         $card->number = $data['card_number'];
@@ -105,17 +212,14 @@ class PaymentController {
                     ->withCurrency('CAD')
                     ->withDynamicDescriptor('HUMANITY FIRST CANADA')  //Consult with Corex  
                     ->withAllowDuplicates(false)
-                    ->withClientTransactionId("HF-".$donation->receipt_id)
+                    ->withClientTransactionId("HF-" . $donation->receipt_id)
                     ->withAddress($address)
                     ->execute();
             $fObj = \App\Config\Pixel::flattenObject($responseCharge);
             $donation->cheque_trans_no = $fObj['transactionReference_transactionId'];
-            $donation->is_online = '1';//$fObj['']
-            
+            $donation->is_online = '1'; //$fObj['']
+
             $this->model->addDonation($donation);
-            
-            print_r($fObj);
-            exit;
             $responseBody = [
                 'transaction_id' => $responseCharge->transactionId,
                 'amount' => $responseCharge->authorizedAmount,
@@ -138,7 +242,7 @@ class PaymentController {
             ];
 
             // Send the successful response
-            $response->getBody()->write(json_encode(ApiResponse::success($responseBody)));
+            $response->getBody()->write(json_encode(ApiResponse::success($fObj)));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (ApiException $ex) {
             print_r($ex);
@@ -146,7 +250,7 @@ class PaymentController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
             // Handle any other exceptions
-            $response->getBody()->write(json_encode(ApiResponse::notFound(["message" => "Transaction error: " . $e->getMessage()])));
+            $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Transaction error: " . $e->getMessage()])));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }

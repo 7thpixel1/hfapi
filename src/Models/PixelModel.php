@@ -664,6 +664,75 @@ class PixelModel {
 
         $this->db->query($sql, $matchObj);
     }
+
+    public function insertApiToken($token, $expiresAt) {
+        $sql = "INSERT INTO api_tokens (token, expires_at) 
+            VALUES (:token, :expires_at) 
+            ON DUPLICATE KEY UPDATE token = :token, expires_at = :expires_at";
+        $params = [
+            'token' => $token,
+            'expires_at' => $expiresAt
+        ];
+        $this->db->query($sql, $params);
+    }
+
+    public function getActiveApiToken() {
+        $sql = "SELECT token 
+            FROM api_tokens 
+            WHERE expires_at > NOW() 
+            LIMIT 1";
+
+        $this->db->query($sql);
+        $result = $this->db->fetchObject();
+
+        if ($result) {
+            return $result->token;
+        } else {
+            $this->deleteExpiredTokens();
+            return null;
+        }
+    }
+
+    private function deleteExpiredTokens() {
+        $sql = "DELETE FROM api_tokens 
+            WHERE expires_at <= NOW()";
+
+        // Execute the query to delete expired tokens
+        $this->db->query($sql);
+    }
+
+    private function saveCardData($donorId, $sourceDonation,  $data) {
+        $sql = "INSERT INTO donor_tokens (
+                donor_id, token, card_holder_name, token_name, 
+                brand, expiry_month, expiry_year, source_donation, 
+                created_date, created_by, modified_date, modified_by, status, object
+            ) VALUES (
+                :donor_id, :token, :card_holder_name, :token_name, 
+                :brand, :expiry_month, :expiry_year, :source_donation, 
+                :created_date, :created_by, :modified_date, :modified_by, :status, :object
+            )";
+
+        // Prepare the parameters for the query
+        $params = [
+            'donor_id' => $donorId,
+            'token' => $data['id'], // Card token from the response
+            'card_holder_name' => null, // Assuming no cardholder name in the response
+            'token_name' => null, // Assuming no specific token name in the response
+            'brand' => $data['card']['brand'], // Card brand from the response
+            'expiry_month' => $data['card']['expiry_month'], // Expiry month from the response
+            'expiry_year' => $data['card']['expiry_year'], // Expiry year from the response
+            'source_donation' => $sourceDonation,
+            'created_date' => date('Y-m-d H:i:s'), // Current timestamp
+            'created_by' => 1,
+            'modified_date' => date('Y-m-d H:i:s'), // Current timestamp
+            'modified_by' => 1,
+            'status' => 1, // Assuming status is active (1)
+            'object' => json_encode($data) // Store the full object as a JSON string
+        ];
+
+        // Execute the query
+        $this->db->query($sql, $params);
+    }
 }
 
 ?>

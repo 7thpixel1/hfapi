@@ -2,6 +2,8 @@
 
 namespace App\Config;
 
+use NumberFormatter;
+
 /**
  * Description of Pixel
  *
@@ -294,4 +296,12 @@ class Pixel {
         }
         return $result;
     }
+
+    public static function convertNumberToWords($number) {
+        
+        $formatter = new NumberFormatter('en', NumberFormatter::SPELLOUT);
+        return ucfirst($formatter->format($number));
+        
+    }
+    
 }

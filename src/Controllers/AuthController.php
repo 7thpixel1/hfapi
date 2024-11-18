@@ -24,7 +24,7 @@ class AuthController {
         $password = $body['password'];
 
         $donor = $this->model->isAuthorized($username, $password);
-
+        
         if ($donor !== null) {
             $issuedAt = time();
             $expirationTime = $issuedAt + (3600 * (int) $_ENV['TOKEN_LIFE']);
