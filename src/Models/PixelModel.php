@@ -360,11 +360,11 @@ class PixelModel {
 
     /* Payment */
 
-    public function saveTransactionHistory(array $transactionData): bool {
+    public function saveTransactionHistory(array $transactionData): void {
         $sql = "INSERT INTO global_payment_history (
                     donor_id, donation_id, auth_amount, avail_balance, avs_code, balance_amt, 
                     batch_ref, card_type, card_last4, trans_type, ref_num, resp_code, resp_msg, 
-                    created_date, trans_auth_code, trans_id, fraud_mode, fraud_result, fraud_rule_1_key, 
+                    date_created, trans_auth_code, trans_id, fraud_mode, fraud_result, fraud_rule_1_key, 
                     fraud_rule_1_desc, fraud_rule_1_result, card_result, card_cvv_result, card_last4_detail, 
                     card_brand, card_avs_code, meta_info
                 ) VALUES (
@@ -401,7 +401,8 @@ class PixelModel {
             ':card_cvv_result' => $transactionData['cardIssuerResponse_cvvResult'] ?? null,
             ':card_last4_detail' => $transactionData['cardDetails_maskedNumberLast4'] ?? null,
             ':card_brand' => $transactionData['cardDetails_brand'] ?? null,
-            ':card_avs_code' => $transactionData['cardDetails_avsResponseCode'] ?? null
+            ':card_avs_code' => $transactionData['cardDetails_avsResponseCode'] ?? null,
+            ':meta_info' => $transactionData['meta_info'] ?? null,
         ];
         $this->db->query($sql, $params);
     }
@@ -410,7 +411,8 @@ class PixelModel {
         try {
             // Start a transaction
             $this->db->beginTransaction();
-
+            $donor['refrence_id'] = $this->getMaxDonorId();
+            $donor['branch_id'] = 114;
             $sql = "INSERT INTO donors (title, first_name, last_name, business_name, date_of_birth, gender, address1, 
                                          address2, city_id, state_id, country_id, postal_code,  email, cell, type, source, 
                                          branch_id, reference_id, created_date, created_by, status, 
@@ -438,9 +440,9 @@ class PixelModel {
                 'cell' => $donor->cell,
                 'type' => $donor->type,
                 'source' => '2',
-                'branch_id' => $donor->branch_id,
-                'reference_id' => $donor->reference_id,
-                'created_date' => date('Y-m-d H:i:s'), // Current timestamp
+                'branch_id' => 114,
+                'reference_id' => $this->getMaxDonorId(),
+                'created_date' => date('Y-m-d H:i:s'),
                 'created_by' => 1,
                 'status' => $donor->status,
                 'password_hash' => $donor->password_hash,
@@ -457,12 +459,11 @@ class PixelModel {
             $this->db->commit();
 
             // Set the ID of the donor object
-            $this->id = $this->db->lastInsertId();
-            return $this->id;
+            $donor->id = $this->id = $this->db->lastInsertId();
+            return $donor;
         } catch (PDOException $e) {
-            // Rollback the transaction in case of an error
             $this->db->rollBack();
-            throw $e; // Re-throw the exception for handling upstream
+            throw $e;
         }
     }
 
@@ -556,7 +557,7 @@ class PixelModel {
                 'is_online' => $object->is_online
             ];
             $this->db->query($sql, $param);
-            $object->parent_id = $this->db->lastInsertId();
+            $donation_id = $object->parent_id = $this->db->lastInsertId();
 
             // Insert each child donation
             foreach ($children as $item) {
@@ -612,7 +613,7 @@ class PixelModel {
 
             // Commit the transaction
             $this->db->commit();
-            return true;
+            return $donation_id;
         } catch (PDOException $e) {
             // Rollback the transaction in case of an error
             $this->db->rollBack();
@@ -701,7 +702,7 @@ class PixelModel {
         $this->db->query($sql);
     }
 
-    private function saveCardData($donorId, $sourceDonation,  $data) {
+    public function saveCardData($data) {
         $sql = "INSERT INTO donor_tokens (
                 donor_id, token, card_holder_name, token_name, 
                 brand, expiry_month, expiry_year, source_donation, 
@@ -714,24 +715,66 @@ class PixelModel {
 
         // Prepare the parameters for the query
         $params = [
-            'donor_id' => $donorId,
-            'token' => $data['id'], // Card token from the response
-            'card_holder_name' => null, // Assuming no cardholder name in the response
-            'token_name' => null, // Assuming no specific token name in the response
+            'donor_id' => $data['donor_id'],
+            'token' => $data['id'],
+            'card_holder_name' => $data['card_holder_name'],
+            'token_name' => $data['card']['masked_number_last4'],
             'brand' => $data['card']['brand'], // Card brand from the response
-            'expiry_month' => $data['card']['expiry_month'], // Expiry month from the response
+            'expiry_month' => str_pad($data['card']['expiry_month'], 2, "0", STR_PAD_LEFT),
             'expiry_year' => $data['card']['expiry_year'], // Expiry year from the response
-            'source_donation' => $sourceDonation,
+            'source_donation' => $data['donation_id'],
             'created_date' => date('Y-m-d H:i:s'), // Current timestamp
             'created_by' => 1,
             'modified_date' => date('Y-m-d H:i:s'), // Current timestamp
             'modified_by' => 1,
             'status' => 1, // Assuming status is active (1)
-            'object' => json_encode($data) // Store the full object as a JSON string
+            'object' => gzencode(json_encode($data),9) // Store the full object as a JSON string
         ];
 
         // Execute the query
         $this->db->query($sql, $params);
+        $token_id = $this->db->lastInsertId();
+        $data['token_id'] = $token_id;
+        $this->saveRecurringDonation($data);
+    }
+
+    private function saveRecurringDonation($data) {
+        $sql = "INSERT INTO recurring_donations (
+                donor_id,token_id, eligible_amount, non_eligible_amount, project_id, comments, 
+                frequency, created_date, created_by, modified_date, 
+                modified_by, source_donation, status, last_run
+            ) VALUES (
+                :donor_id, :token_id, :eligible_amount, :non_eligible_amount, :project_id, :comments, 
+                :frequency, :created_date, :created_by, :modified_date, 
+                :modified_by, :source_donation, :status, :last_run
+            )";
+
+        // Prepare the parameters for the query
+        $params = [
+            'donor_id' => $data['donor_id'],
+            'token_id' => $data['token_id'],
+            'eligible_amount' => $data['eligible_amount'],
+            'non_eligible_amount' => $data['non_eligible_amount'],
+            'project_id' => $data['project_id'],
+            'comments' => $data['message'],
+            'frequency' => $data['frequency'],
+            'created_date' => date('Y-m-d H:i:s'), // Current timestamp
+            'created_by' => 1,
+            'modified_date' => date('Y-m-d H:i:s'), // Current timestamp
+            'modified_by' => 1,
+            'source_donation' => $data['donation_id'],
+            'status' => 1,
+            'last_run' => null
+        ];
+
+        $this->db->query($sql, $params);
+    }
+
+    public function getMaxDonorId() {
+        $sql = "SELECT IFNULL(MAX(CONVERT(refrence_id, SIGNED INTEGER)), 0) AS lastId FROM donors";
+        $this->db->query($sql);
+        $result = $this->db->fetchObject();
+        return $result ? (int) $result->lastId + 1 : 1; // Increment the max ID or return 1 if none exists
     }
 }
 

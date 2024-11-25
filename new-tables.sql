@@ -45,5 +45,56 @@ CREATE TABLE `recurring_donations` (
 ALTER TABLE `donations` 
 ADD COLUMN `city` VARCHAR(255) NOT NULL DEFAULT '' AFTER `is_online`,
 ADD COLUMN `state` VARCHAR(255) NOT NULL DEFAULT '' AFTER `city`,
-ADD COLUMN `country` VARCHAR(255) NOT NULL DEFAULT '' AFTER `state`;
+ADD COLUMN `country` VARCHAR(3) NOT NULL DEFAULT '' AFTER `state`;
+
+
+ALTER TABLE `hf_dms`.`donations` 
+ADD COLUMN `is_recurring` TINYINT NOT NULL DEFAULT 0 AFTER `country`,
+ADD COLUMN `dedication_type` VARCHAR(10) NULL AFTER `is_recurring`,
+ADD COLUMN `honoree_first_name` VARCHAR(255) NULL AFTER `dedication_type`,
+ADD COLUMN `honoree_last_name` VARCHAR(255) NULL AFTER `honoree_first_name`;
+
+ALTER TABLE `hf_dms`.`donors` 
+ADD COLUMN `opt_in` TINYINT NOT NULL DEFAULT 0 AFTER `meta_info`;
+
+ALTER TABLE `hf_dms`.`donors` 
+ADD COLUMN `city` VARCHAR(255) NULL AFTER `opt_in`,
+ADD COLUMN `state` VARCHAR(255) NULL AFTER `city`,
+ADD COLUMN `country` VARCHAR(3) NULL AFTER `state`;
+
+
+ALTER TABLE `hf_dms`.`branches` 
+ADD COLUMN `city` VARCHAR(255) NULL AFTER `cordinator_id`;
+
+ALTER TABLE `hf_dms`.`recurring_donations` 
+DROP COLUMN `card_brand_reference`,
+DROP COLUMN `card_holder_name`,
+ADD COLUMN `token_id` BIGINT NOT NULL DEFAULT 0 AFTER `donor_id`;
+ALTER TABLE `hf_dms`.`donations` 
+ADD COLUMN `online_batch_id` VARCHAR(20) NULL AFTER `honoree_last_name`;
+
+
+
+update donations d 
+join cities c on d.city_id=c.id 
+join provinces p on d.state_id=p.id
+join countries ct on d.country_id=ct.id
+set d.city=c.name,
+d.state=p.name,
+d.country=ct.iso_code;
+
+
+update donors d 
+join cities c on d.city_id=c.id 
+join provinces p on d.state_id=p.id
+join countries ct on d.country_id=ct.id
+set d.city=c.name,
+d.state=p.name,
+d.country=ct.iso_code;
+
+update branches d 
+join cities c on d.city_id=c.id 
+set d.city=c.name;
+
+
 

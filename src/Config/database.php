@@ -35,7 +35,7 @@ class Database {
         // Iterate through parameters and bind them
         foreach ($params as $key => $value) {
             // Convert to int if it's numeric
-            if (is_numeric($value)) {
+            if (is_numeric($value) && strval(intval($value)) === $value) {
                 $this->stmt->bindValue($key, (int) $value, PDO::PARAM_INT);
             } else {
                 // Bind as a string by default

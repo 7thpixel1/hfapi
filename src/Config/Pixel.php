@@ -298,10 +298,103 @@ class Pixel {
     }
 
     public static function convertNumberToWords($number) {
-        
+
         $formatter = new NumberFormatter('en', NumberFormatter::SPELLOUT);
         return ucfirst($formatter->format($number));
-        
     }
-    
+
+    public static function encryptObject($data, $encryptionKey) {
+        $cipher = "AES-256-CBC";
+        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($cipher));
+        $encryptedData = openssl_encrypt(json_encode($data), $cipher, $encryptionKey, 0, $iv);
+
+        if ($encryptedData === false) {
+            throw new Exception("Encryption failed.");
+        }
+
+        return base64_encode(json_encode(['iv' => base64_encode($iv), 'data' => $encryptedData]));
+    }
+
+    public static function decryptObject($encryptedPayload, $encryptionKey) {
+        $cipher = "AES-256-CBC";
+        $payload = json_decode(base64_decode($encryptedPayload), true);
+
+        if (!isset($payload['iv']) || !isset($payload['data'])) {
+            throw new Exception("Invalid payload structure.");
+        }
+
+        $iv = base64_decode($payload['iv']);
+        $encryptedData = $payload['data'];
+
+        $decryptedData = openssl_decrypt($encryptedData, $cipher, $encryptionKey, 0, $iv);
+
+        if ($decryptedData === false) {
+            throw new Exception("Decryption failed.");
+        }
+
+        return json_decode($decryptedData, true);
+    }
+
+    public static function metaInfo($request): array {
+        $userAgent = $request->getHeaderLine('User-Agent');
+
+        $object = [
+            "ip" => $request->getServerParam('REMOTE_ADDR', '0.0.0.0'),
+            "browser" => self::getBrowserName($userAgent),
+            "browserVersion" =>self::getBrowserVersion($userAgent),
+            "isMobile" => self::isMobile($userAgent) ? 1 : 0,
+            "mobile" => self::getMobileName($userAgent),
+            "osName" => self::getOS($userAgent),
+            "lang" => $request->getHeaderLine('Accept-Language') ?? 'en'
+        ];
+
+        return $object;
+    }
+
+// Helper Functions
+    private static function getBrowserName($userAgent) {
+        // Simplified browser detection logic
+        if (strpos($userAgent, 'Chrome') !== false)
+            return 'Chrome';
+        if (strpos($userAgent, 'Firefox') !== false)
+            return 'Firefox';
+        if (strpos($userAgent, 'Safari') !== false)
+            return 'Safari';
+        if (strpos($userAgent, 'MSIE') !== false || strpos($userAgent, 'Trident') !== false)
+            return 'Internet Explorer';
+        return 'Unknown';
+    }
+
+    private static function getBrowserVersion($userAgent) {
+        preg_match('/(Version|Chrome|Firefox|MSIE|rv:|Trident)[\/\s](\d+)/', $userAgent, $matches);
+        return $matches[2] ?? 'Unknown';
+    }
+
+    private static function isMobile($userAgent) {
+        return preg_match('/Mobile|Android|iPhone|iPad|iPod/', $userAgent);
+    }
+
+    private static function getMobileName($userAgent) {
+        if (strpos($userAgent, 'iPhone') !== false)
+            return 'iPhone';
+        if (strpos($userAgent, 'iPad') !== false)
+            return 'iPad';
+        if (strpos($userAgent, 'Android') !== false)
+            return 'Android';
+        return 'Unknown';
+    }
+
+    private static function getOS($userAgent) {
+        if (preg_match('/Windows NT/', $userAgent))
+            return 'Windows';
+        if (preg_match('/Mac OS X/', $userAgent))
+            return 'MacOS';
+        if (preg_match('/Linux/', $userAgent))
+            return 'Linux';
+        if (preg_match('/Android/', $userAgent))
+            return 'Android';
+        if (preg_match('/iOS|iPhone|iPad/', $userAgent))
+            return 'iOS';
+        return 'Unknown';
+    }
 }

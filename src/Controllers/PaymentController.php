@@ -97,12 +97,8 @@ class PaymentController {
         }
     }
 
-    public function saveCard(Request $request, Response $response, $args) {
+    private function saveCardRoutine($data) {
 
-        $client = new Client();
-        $data = json_decode($request->getBody(), true);
-        
-        $url = $this->_api_url . "payment-methods";
         $bearerToken = $this->model->getActiveApiToken();
 
         if ($bearerToken === null) {
@@ -113,12 +109,12 @@ class PaymentController {
                 $expiresAt = date("Y-m-d H:i:s", time() + $secondsToExpire);
                 $this->model->insertApiToken($token, $expiresAt);
                 $bearerToken = $token;
-            } else {//return 
-                $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Token Generation error"])));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            } else {
+                return json_encode(ApiResponse::error("Authorization error."));
             }
         }
-
+        $client = new Client();
+        $url = $this->_api_url . "payment-methods";
         $body = [
             "reference" => $data['reference'],
             "usage_mode" => "MULTIPLE",
@@ -126,7 +122,6 @@ class PaymentController {
         ];
 
         try {
-            // Make the POST request
             $res = $client->post($url, [
                 'headers' => [
                     'Authorization' => "Bearer $bearerToken",
@@ -135,39 +130,79 @@ class PaymentController {
                 ],
                 'json' => $body,
             ]);
+            $resObj = json_decode($res->getBody(), true);
 
-            // Parse and return the response
-            $Obj = json_decode($res->getBody(), true);
-            $response->getBody()->write(json_encode(ApiResponse::success($Obj)));
-            return $response->withHeader('Content-Type', 'application/json');
-            
-            
-            
+            return json_encode(ApiResponse::success($resObj));
         } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Card Save Error: " . $e->getMessage()])));
+            return json_encode(ApiResponse::error("Card Save Error: " . $e->getMessage()));
+        }
+    }
+
+    public function saveCard(Request $request, Response $response, $args) {
+
+
+        $data = json_decode($request->getBody(), true);
+        $res = $this->saveCardRoutine($data);
+        $resObj = json_decode($res);
+        if ($resObj->status === 200) {
+            $response->getBody()->write(json_encode(ApiResponse::success($resObj->data)));
+            return $response->withHeader('Content-Type', 'application/json');
+        } else {
+            $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Transaction error: " . $resObj->message])));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
 
-    public function processSales(Request $request, Response $response, $args) {
-        $data = json_decode($request->getBody(), true);
-//First step is get donor, if user is loggedin, we can send donor_id and donation_id will be zero for first call but for second call it will be > 0
+    private function saveDonor($data) {
+        $params = (object) [
+                    'title' => '',
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                    'business_name' => $data['copmany'],
+                    'gender' => 3,
+                    'address1' => $data['address1'],
+                    'address2' => $data['address2'],
+                    'city' => $data['city_id'],
+                    'state' => $data['province'],
+                    'country' => $data['country'],
+                    'postal_code' => $data['postal_code'],
+                    'email' => $data['email'],
+                    'cell' => $data['phone'],
+                    'type' => (strlen($data['copmany']) > 1) ? 3 : 2,
+                    'source' => '2',
+                    'created_date' => date('Y-m-d H:i:s'), // Current timestamp
+                    'created_by' => 1,
+                    'status' => 1,
+                    'password_hash' => $donor->password_hash,
+                    'can_login' => 1,
+                    'email_status' => 0,
+                    'opt_in' => $data['opt_in'],
+                    'meta_info' => json_encode(\App\Config\Pixel::metaInfo($request))
+        ];
+        return $this->model->saveDonor($params);
+    }
 
-        $donor = $this->model->getDonorByEmailPostalCode($data['email'], $data['postal_code']);
-        $donor_id = 0;
-        if ($donor === null) {//create donor and get id
-            $donor_id = 0;
+    public function processSales(Request $request, Response $response, $args) {
+
+        $donor_id = (int) $request->getAttribute('user_id');
+
+        $data = json_decode($request->getBody(), true);
+
+        if ($donor_id === 0) {
+            $donor = $this->model->getDonorByEmailPostalCode($data['email'], $data['postal_code']);
+            if ($donor === null) {
+                //Create Donor
+                $donor = $this->saveDonor($data);
+            }
         } else {
-            $donor_id = $donor->id;
+            $donor = $this->model->getDonor($donor_id);
         }
 
-
-        //lets create donation object:
         $donation = new \stdClass();
 
         $donation->created_date = $donation->receipt_date = date('Y-m-d H:i:s');
         $donation->created_by = 1;
-        $donation->donor_id = $donor_id;
+        $donation->donor_id = (int) $donor->id;
         $donation->status = 0;
         $donation->comments = $data['comments'] ?? NULL;
 
@@ -189,14 +224,22 @@ class PaymentController {
         $donation->sum_of_string = $data['sum_of_string'];
         $donation->receipt_id = $this->model->getReceiptId();
 
-        //Payment
-        $card = new CreditCardData();
-        $card->number = $data['card_number'];
-        $card->expMonth = $data['expiry_date'];
-        $card->expYear = $data['expiry_year'];
-        $card->cvn = $data['cvn'];
-        $card->cardHolderName = $data['card_holder_name'];
+        $donation->dedication_type = $data['dedication_type'];
+        $donation->honoree_first_name = $data['honoree_first_name'];
+        $donation->honoree_last_name = $data['honoree_last_name'];
+        $donation->comments = $data['message'];
+        $donation->is_recurring = ((int) $data['donation_type'] > 0) ? 1 : 0;
 
+        //Payment
+        $cardObject = \App\Config\Pixel::decryptObject($data['card_object'], $_ENV['ENC_KEY']);
+
+        $card = new CreditCardData();
+        $card->number = $cardObject['card_number'];
+        $card->expMonth = $cardObject['expiry_date'];
+        $card->expYear = $cardObject['expiry_year'];
+        $card->cvn = $cardObject['cvn'];
+        $card->cardHolderName = $cardObject['card_holder_name'];
+        $cardHolderName = $cardObject['card_holder_name'];
         // Create Address instance
         $address = new Address();
         $address->streetAddress1 = $data['address1'];
@@ -207,50 +250,74 @@ class PaymentController {
         $address->country = $data['country'];
 
         try {
-
+//->withDynamicDescriptor('HUMANITY FIRST CANADA')  //Consult with Corex  
             $responseCharge = $card->charge(round($data['amount'], 2))
                     ->withCurrency('CAD')
-                    ->withDynamicDescriptor('HUMANITY FIRST CANADA')  //Consult with Corex  
                     ->withAllowDuplicates(false)
                     ->withClientTransactionId("HF-" . $donation->receipt_id)
                     ->withAddress($address)
                     ->execute();
             $fObj = \App\Config\Pixel::flattenObject($responseCharge);
             $donation->cheque_trans_no = $fObj['transactionReference_transactionId'];
+            $donation->online_batch_id = $fObj['batchSummary_batchReference'];
             $donation->is_online = '1'; //$fObj['']
 
-            $this->model->addDonation($donation);
-            $responseBody = [
-                'transaction_id' => $responseCharge->transactionId,
-                'amount' => $responseCharge->authorizedAmount,
-                'batch_id' => $responseCharge->batchSummary->batchReference,
-                'transaction_type' => $responseCharge->originalTransactionType,
-                'reference_number' => $responseCharge->referenceNumber,
-                'transaction_status' => $responseCharge->responseMessage,
-                'time_created' => $responseCharge->timestamp,
-                'response_code' => $responseCharge->responseCode,
-                'card_brand_reference' => $responseCharge->cardBrandTransactionId,
-                'authorization_code' => $responseCharge->authorizationCode,
-                'avs_response_code' => $responseCharge->avsResponseCode,
-                'avs_address_response' => $responseCharge->avsAddressResponse,
-                'cvn_response_message' => $responseCharge->cvnResponseMessage,
-                'card_type' => $responseCharge->cardDetails->brand,
-                'masked_number_last4' => $responseCharge->cardDetails->maskedNumberLast4,
-                'card_issuer_result' => $responseCharge->cardIssuerResponse->result,
-                'fraud_response_mode' => $responseCharge->fraudFilterResponse->fraudResponseMode,
-                'fraud_response_result' => $responseCharge->fraudFilterResponse->fraudResponseResult,
-            ];
+            $donation_id = $this->model->addDonation($donation);
+            $fObj['donationId'] = $donation_id;
+            $fObj['donorId'] = $donation->donor_id;
+            $fObj['meta_info'] = $data['meta_info'];
+            $this->model->saveTransactionHistory($fObj);
+            if ($fObj['responseCode'] === 'SUCCESS') {
+                $responseBody = [
+                    'transaction_id' => $responseCharge->transactionId,
+                    'batch_id' => $responseCharge->batchSummary->batchReference,
+                    'reference_number' => $responseCharge->referenceNumber
+                ];
+                $responseBody['donation_type'] = $data['donation_type'];
+                //time to save card
+                if ((int) $data['donation_type'] > 0) {
 
-            // Send the successful response
-            $response->getBody()->write(json_encode(ApiResponse::success($fObj)));
+                    $card = new \stdClass();
+                    $card->number = $cardObject['card_number'];
+                    $card->expiry_month = $cardObject['expiry_date'];
+                    $card->expiry_year = substr($cardObject['expiry_year'], -2);
+                    $card->cvv = $cardObject['cvn'];
+                    $saveObject = ["reference" => "DNR_" . $donor->id, "card" => $card];
+                    $card_res = $this->saveCardRoutine($saveObject);
+                    $card_res_json = json_decode($card_res, true);
+                    $responseBody['is_card_saved'] = 0;
+                    if ((int) $card_res_json['status'] === 200) {
+                        $saveCardResponse = $card_res_json['data'];
+                        if ($saveCardResponse['status'] === 'ACTIVE') {
+                            $responseBody['is_card_saved'] = 1;
+                            $saveCardResponse['card_holder_name'] = $cardHolderName;
+                            $saveCardResponse['donor_id'] = $donor->id;
+                            $saveCardResponse['donation_id'] = $donation_id;
+                            $saveCardResponse['non_eligible_amount'] = $data['non_eligible_amount'];
+                            $saveCardResponse['eligible_amount'] = $data['eligible_amount'];
+                            $saveCardResponse['project_id'] = 0;
+                            $saveCardResponse['message'] = $data['message'];
+                            $saveCardResponse['frequency'] = (int) $data['donation_type'];
+                            $this->model->saveCardData($saveCardResponse);
+                        }
+                    }
+                }
+
+
+                $response->getBody()->write(json_encode(ApiResponse::success($responseBody)));
+            } else {
+                $response->getBody()->write(json_encode(ApiResponse::error("We're sorry, but your payment has been declined. "
+                                        . "Please check your card details for any errors and try again or use a different card<br>Error Code:(" . $fObj['cardIssuerResponse_result'] . ")")));
+            }
+
+//            $response->getBody()->write(json_encode(ApiResponse::success($fObj)));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (ApiException $ex) {
-            print_r($ex);
-            $response->getBody()->write(json_encode(ApiResponse::notFound(["message" => "Transaction error: " . $ex->getMessage()])));
+            $response->getBody()->write(json_encode(ApiResponse::error("Server error, please try again.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
             // Handle any other exceptions
-            $response->getBody()->write(json_encode(ApiResponse::error(["message" => "Transaction error: " . $e->getMessage()])));
+            $response->getBody()->write(json_encode(ApiResponse::error("Server processing error")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
