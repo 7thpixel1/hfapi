@@ -171,11 +171,8 @@ class PixelModel {
                         a.id AS value, a.email, a.postal_code, 
                         CONCAT(a.last_name, ', ', a.first_name) AS label, 
                         a.middle_name, a.last_name, a.first_name, 
-                        b.name AS city_name, c.name AS province, d.name AS country 
+                        a.city as city_name, a.state AS province, a.country 
                 FROM donors a
-                JOIN cities b ON a.city_id = b.id
-                JOIN provinces c ON a.state_id = c.id
-                JOIN countries d ON a.country_id = d.id
                 WHERE a.id = :donor_id 
                 LIMIT 1";
 
@@ -411,55 +408,48 @@ class PixelModel {
         try {
             // Start a transaction
             $this->db->beginTransaction();
-            $donor['refrence_id'] = $this->getMaxDonorId();
-            $donor['branch_id'] = 114;
-            $sql = "INSERT INTO donors (title, first_name, last_name, business_name, date_of_birth, gender, address1, 
-                                         address2, city_id, state_id, country_id, postal_code,  email, cell, type, source, 
-                                         branch_id, reference_id, created_date, created_by, status, 
-                                         password_hash, can_login, email_status, last_login, meta_info) 
-                    VALUES (:title, :first_name, :last_name, :business_name, :date_of_birth, :gender, :address1, 
-                            :address2, :city_id, :state_id, :country_id, :postal_code, 
-                            :email, :cell, :type, :source, :branch_id, :reference_id, 
-                            :created_date, :created_by, :status, :password_hash, :can_login, 
-                            :email_status, :last_login, :meta_info)";
+            $sql = "INSERT INTO donors (title, first_name, last_name, business_name, date_of_birth, gender, address1, address2, city, state, country, postal_code, email, 
+                cell, type, source, branch_id, refrence_id, created_date, created_by, status, password_hash, can_login, email_status, last_login, meta_info) 
+                    VALUES (:title, :first_name, :last_name, :business_name, :date_of_birth, :gender, :address1, :address2, :city, :state, :country, :postal_code, :email, 
+                    :cell, :type, :source, :branch_id, :refrence_id, :created_date, :created_by, :status, :password_hash, :can_login, :email_status, :last_login, :meta_info)";
 
             $params = [
                 'title' => $donor->title,
                 'first_name' => $donor->first_name,
                 'last_name' => $donor->last_name,
                 'business_name' => $donor->business_name,
-                'date_of_birth' => $donor->date_of_birth,
+                'date_of_birth' => $donor->date_of_birth ?? NULL,
                 'gender' => $donor->gender,
                 'address1' => $donor->address1,
                 'address2' => $donor->address2,
-                'city_id' => $donor->city_id,
-                'state_id' => $donor->state_id,
-                'country_id' => $donor->country_id,
+                'city' => $donor->city,
+                'state' => $donor->state,
+                'country' => $donor->country,
                 'postal_code' => $donor->postal_code,
                 'email' => $donor->email,
                 'cell' => $donor->cell,
                 'type' => $donor->type,
                 'source' => '2',
                 'branch_id' => 114,
-                'reference_id' => $this->getMaxDonorId(),
+                'refrence_id' => $this->getMaxDonorId(),
                 'created_date' => date('Y-m-d H:i:s'),
                 'created_by' => 1,
                 'status' => $donor->status,
                 'password_hash' => $donor->password_hash,
                 'can_login' => 1,
                 'email_status' => 0,
-                'last_login' => $donor->last_login,
+                'last_login' => date('Y-m-d H:i:s'),
                 'meta_info' => $donor->meta_info
             ];
 
             // Execute the query
             $this->db->query($sql, $params);
-
+            $donor->id = $this->id = $this->db->lastInsertId();
             // Commit the transaction
             $this->db->commit();
 
             // Set the ID of the donor object
-            $donor->id = $this->id = $this->db->lastInsertId();
+            
             return $donor;
         } catch (PDOException $e) {
             $this->db->rollBack();

@@ -56,6 +56,7 @@ $app->get('/server-token', [AuthController::class, 'serverToken']);
 $app->post('/login', [AuthController::class, 'login'])->add($jwtMiddleware);
 $app->get('/donations[/{page}]', [DonationController::class, 'getDonations'])->add($jwtMiddleware);
 $app->get('/donation/{donation_id}', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
+$app->get('/send-donation/{donation_id}/{donor_id}', [DonationController::class, 'sendDonation'])->add($jwtMiddleware);
 
 $app->post('/donate', [PaymentController::class, 'donate'])->add($jwtMiddleware);
 $app->post('/donate-now', [PaymentController::class, 'processSales'])->add($jwtMiddleware);

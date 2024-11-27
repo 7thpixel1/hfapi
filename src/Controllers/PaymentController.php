@@ -37,7 +37,7 @@ class PaymentController {
         $config->appKey = $_ENV['GP_API_KEY'];
         $config->channel = Channel::CardNotPresent;
         $config->country = 'CA';
-        $config->environment = Environment::TEST;
+        $config->environment = ($_ENV['GP_ENV'] === 'TEST') ? Environment::TEST : Environment::PRODUCTION;
         $config->requestLogger = new SampleRequestLogger(new Logger("logs"));
 
         $config->methodNotificationUrl = "https://www.example.com/methodNotificationUrl";
@@ -157,27 +157,27 @@ class PaymentController {
         $params = (object) [
                     'title' => '',
                     'first_name' => $data['first_name'],
-                    'last_name' => $data['last_name'],
-                    'business_name' => $data['copmany'],
-                    'gender' => 3,
+                    'last_name' => $data['last_name'] ?? NULL,
+                    'business_name' => $data['copmany'] ?? NULL,
+                    'gender' => (int)($data['gender'] ?? NULL),
                     'address1' => $data['address1'],
-                    'address2' => $data['address2'],
-                    'city' => $data['city_id'],
-                    'state' => $data['province'],
-                    'country' => $data['country'],
-                    'postal_code' => $data['postal_code'],
+                    'address2' => $data['address2'] ?? NULL,
+                    'city' => $data['city'] ?? NULL,
+                    'state' => $data['province'] ?? NULL,
+                    'country' => $data['country'] ?? NULL,
+                    'postal_code' => $data['postal_code'] ?? NULL,
                     'email' => $data['email'],
-                    'cell' => $data['phone'],
+                    'cell' => $data['phone'] ?? NULL,
                     'type' => (strlen($data['copmany']) > 1) ? 3 : 2,
                     'source' => '2',
                     'created_date' => date('Y-m-d H:i:s'), // Current timestamp
                     'created_by' => 1,
-                    'status' => 1,
-                    'password_hash' => $donor->password_hash,
+                    'status' => (int)($data['status'] ?? NULL),
+                    'password_hash' => \App\Config\Pixel::generateRandomString(),
                     'can_login' => 1,
                     'email_status' => 0,
-                    'opt_in' => $data['opt_in'],
-                    'meta_info' => json_encode(\App\Config\Pixel::metaInfo($request))
+                    'opt_in' => (int)($data['opt_in'] ?? NULL),
+                    'meta_info' => $data['meta_info'] ?? NULL
         ];
         return $this->model->saveDonor($params);
     }
@@ -195,9 +195,8 @@ class PaymentController {
                 $donor = $this->saveDonor($data);
             }
         } else {
-            $donor = $this->model->getDonor($donor_id);
+            $donor = $this->model->getDonor($donor_id);   
         }
-
         $donation = new \stdClass();
 
         $donation->created_date = $donation->receipt_date = date('Y-m-d H:i:s');
@@ -257,26 +256,28 @@ class PaymentController {
                     ->withClientTransactionId("HF-" . $donation->receipt_id)
                     ->withAddress($address)
                     ->execute();
-            $fObj = \App\Config\Pixel::flattenObject($responseCharge);
-            $donation->cheque_trans_no = $fObj['transactionReference_transactionId'];
-            $donation->online_batch_id = $fObj['batchSummary_batchReference'];
+            $paymentRtnObject = \App\Config\Pixel::flattenObject($responseCharge);
+            $donation->cheque_trans_no = $paymentRtnObject['transactionReference_transactionId'];
+            $donation->online_batch_id = $paymentRtnObject['batchSummary_batchReference'];
             $donation->is_online = '1'; //$fObj['']
+            $paymentRtnObject['donorId'] = $donation->donor_id;
+            $paymentRtnObject['meta_info'] = $data['meta_info'];
+            $paymentRtnObject['donationId'] = 0;
+            if ($paymentRtnObject['responseCode'] === 'SUCCESS') {
 
-            $donation_id = $this->model->addDonation($donation);
-            $fObj['donationId'] = $donation_id;
-            $fObj['donorId'] = $donation->donor_id;
-            $fObj['meta_info'] = $data['meta_info'];
-            $this->model->saveTransactionHistory($fObj);
-            if ($fObj['responseCode'] === 'SUCCESS') {
+                $donation_id = $this->model->addDonation($donation);
+                $paymentRtnObject['donationId'] = $donation_id;
+
                 $responseBody = [
                     'transaction_id' => $responseCharge->transactionId,
                     'batch_id' => $responseCharge->batchSummary->batchReference,
-                    'reference_number' => $responseCharge->referenceNumber
+                    'reference_number' => $responseCharge->referenceNumber,
+                    'donation_type' => $data['donation_type'],
+                    'donation_id' => $donation_id,
+                    'donor_id' => $donor->id
                 ];
-                $responseBody['donation_type'] = $data['donation_type'];
                 //time to save card
                 if ((int) $data['donation_type'] > 0) {
-
                     $card = new \stdClass();
                     $card->number = $cardObject['card_number'];
                     $card->expiry_month = $cardObject['expiry_date'];
@@ -302,15 +303,14 @@ class PaymentController {
                         }
                     }
                 }
-
-
                 $response->getBody()->write(json_encode(ApiResponse::success($responseBody)));
             } else {
-                $response->getBody()->write(json_encode(ApiResponse::error("We're sorry, but your payment has been declined. "
-                                        . "Please check your card details for any errors and try again or use a different card<br>Error Code:(" . $fObj['cardIssuerResponse_result'] . ")")));
-            }
 
-//            $response->getBody()->write(json_encode(ApiResponse::success($fObj)));
+                $response->getBody()->write(json_encode(ApiResponse::error("We're sorry, but your payment has been declined. "
+                                        . "Please check your card details for any errors and try again or use a different card<br>Error Code:(" . $paymentRtnObject['cardIssuerResponse_result'] . ")")));
+            }
+            //in both cases we have to save the history
+            $this->model->saveTransactionHistory($paymentRtnObject);
             return $response->withHeader('Content-Type', 'application/json');
         } catch (ApiException $ex) {
             $response->getBody()->write(json_encode(ApiResponse::error("Server error, please try again.")));

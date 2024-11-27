@@ -3,6 +3,9 @@
 namespace App\Config;
 
 use NumberFormatter;
+use SendGrid\Mail\Mail;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 /**
  * Description of Pixel
@@ -341,7 +344,7 @@ class Pixel {
         $object = [
             "ip" => $request->getServerParam('REMOTE_ADDR', '0.0.0.0'),
             "browser" => self::getBrowserName($userAgent),
-            "browserVersion" =>self::getBrowserVersion($userAgent),
+            "browserVersion" => self::getBrowserVersion($userAgent),
             "isMobile" => self::isMobile($userAgent) ? 1 : 0,
             "mobile" => self::getMobileName($userAgent),
             "osName" => self::getOS($userAgent),
@@ -396,5 +399,66 @@ class Pixel {
         if (preg_match('/iOS|iPhone|iPad/', $userAgent))
             return 'iOS';
         return 'Unknown';
+    }
+
+    public static function sendEmailWithSendGrid($object) {
+        $email = new Mail();
+        $email->setFrom($_ENV['APP_EMAIL_FROM'], $_ENV['APP_NAME']);
+        $email->setSubject($object->subject);
+        $email->addTo($object->to);
+        $email->addContent("text/plain", strip_tags($object->body));
+        $email->addContent("text/html", $object->body);
+
+        // Attach the runtime-generated PDF
+        $email->addAttachment(
+                base64_encode($object->pdfContent),
+                "application/pdf",
+                $object->pdfFilename,
+                "attachment"
+        );
+        $email->setReplyTo($_ENV['APP_EMAIL_REPLY'], $_ENV['APP_NAME']);
+        $sendgrid = new \SendGrid($_ENV['SENDGRID']);
+        try {
+            $response = $sendgrid->send($email);
+            return $response->statusCode();
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+
+    function sendEmailWithAmazonSES($object) {
+        $mail = new PHPMailer(true);
+
+        try {
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host = $_ENV['SES_URL'];
+            $mail->SMTPAuth = true;
+            $mail->Username = $_ENV['SES_USR'];
+            $mail->Password = $_ENV['SES_PWD'];
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = $_ENV['SES_PORT'];
+
+            // Recipients
+            $mail->setFrom($_ENV['APP_EMAIL_FROM'], $_ENV['APP_NAME']);
+            $mail->addAddress($object->to);
+
+            // Add Reply-To header
+            $mail->addReplyTo($_ENV['APP_EMAIL_REPLY'], $_ENV['APP_NAME']);
+
+            // Attach the runtime-generated PDF
+            $mail->addStringAttachment($object->pdfContent, $object->pdfFilename, 'base64', 'application/pdf');
+
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = $object->subject;
+            $mail->Body = $object->body;
+            $mail->AltBody = strip_tags($object->body);
+
+            $mail->send();
+            return 202;
+        } catch (Exception $e) {
+            return 0;
+        }
     }
 }
