@@ -97,4 +97,70 @@ join cities c on d.city_id=c.id
 set d.city=c.name;
 
 
+ALTER TABLE `donors` 
+ADD COLUMN `username` VARCHAR(255) NOT NULL AFTER `country`,
+ADD COLUMN `provider` VARCHAR(50) NULL AFTER `username`,
+ADD COLUMN `provider_id` VARCHAR(100) NULL AFTER `provider`,
+ADD COLUMN `access_token` TEXT NULL AFTER `provider_id`,
+ADD COLUMN `refresh_token` TEXT NULL AFTER `access_token`;
+
+
+-- copying unique emails in there
+-- Step 1: Update `username` with `email` if it exists and is unique
+UPDATE donors
+SET username = email
+WHERE email IS NOT NULL
+  AND email NOT IN (
+      SELECT DISTINCT email_2 FROM donors WHERE email_2 IS NOT NULL
+  );
+
+-- Step 2: Update `username` with `email_2` if `email` is NULL or already used
+UPDATE donors
+SET username = email_2
+WHERE username =''
+  AND email_2 IS NOT NULL;
+
+-- Step 3: Ensure `username` is unique by appending the `id` for duplicates
+UPDATE donors
+SET username = CONCAT(SUBSTRING_INDEX(username, '@', 1), '_', id, '@', SUBSTRING_INDEX(username, '@', -1))
+WHERE username IN (
+    SELECT username
+    FROM (
+        SELECT username, COUNT(*) AS c
+        FROM donors
+        GROUP BY username
+        HAVING c > 1
+    ) AS duplicates
+);
+ALTER TABLE donors ADD UNIQUE INDEX username_unique (username);
+ALTER TABLE `donors` 
+ADD COLUMN `last_meta_info` VARCHAR(500) NULL AFTER `refresh_token`;
+
+CREATE TABLE `password_resets` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `expires_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `meta_info` varchar(500) DEFAULT NULL,
+  `ip` varchar(20) DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 0,
+  `reset_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `token` (`token`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+
+-- new db
+CREATE TABLE `ci_sessions` (
+    `id` varchar(128) NOT NULL,
+    `ip_address` varchar(45) NOT NULL,
+    `timestamp` int(10) unsigned DEFAULT 0 NOT NULL,
+    `data` blob NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `ci_sessions_timestamp` (`timestamp`)
+);
+
+
 

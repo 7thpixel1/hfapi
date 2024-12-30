@@ -19,15 +19,21 @@ use GlobalPayments\Api\Entities\Enums\Environment;
 use GlobalPayments\Api\Utils\Logging\SampleRequestLogger;
 use GlobalPayments\Api\Utils\Logging\Logger;
 use GlobalPayments\Api\Entities\GpApi\AccessTokenInfo;
+use Monolog\Logger as MonologLogger;
+use Monolog\Handler\StreamHandler;
 
-class PaymentController {
+class PaymentController extends BaseController{
 
-    private $model, $_errorMessage, $_api_url, $_gp_ver;
+    private $_errorMessage, $_api_url, $_gp_ver, $_logger;
 
     public function __construct(PixelModel $model) {
         $this->model = $model;
         $this->_api_url = $_ENV['GP_URL'];
         $this->_gp_ver = $_ENV['GP_VER'];
+
+//        $this->_logger = new MonologLogger('app_logger');
+//        $this->_logger->pushHandler(new StreamHandler(__DIR__ . '/logs/app.log', MonologLogger::DEBUG));
+
         $this->initGateway();
     }
 
@@ -153,34 +159,7 @@ class PaymentController {
         }
     }
 
-    private function saveDonor($data) {
-        $params = (object) [
-                    'title' => '',
-                    'first_name' => $data['first_name'],
-                    'last_name' => $data['last_name'] ?? NULL,
-                    'business_name' => $data['copmany'] ?? NULL,
-                    'gender' => (int)($data['gender'] ?? NULL),
-                    'address1' => $data['address1'],
-                    'address2' => $data['address2'] ?? NULL,
-                    'city' => $data['city'] ?? NULL,
-                    'state' => $data['province'] ?? NULL,
-                    'country' => $data['country'] ?? NULL,
-                    'postal_code' => $data['postal_code'] ?? NULL,
-                    'email' => $data['email'],
-                    'cell' => $data['phone'] ?? NULL,
-                    'type' => (strlen($data['copmany']) > 1) ? 3 : 2,
-                    'source' => '2',
-                    'created_date' => date('Y-m-d H:i:s'), // Current timestamp
-                    'created_by' => 1,
-                    'status' => (int)($data['status'] ?? NULL),
-                    'password_hash' => \App\Config\Pixel::generateRandomString(),
-                    'can_login' => 1,
-                    'email_status' => 0,
-                    'opt_in' => (int)($data['opt_in'] ?? NULL),
-                    'meta_info' => $data['meta_info'] ?? NULL
-        ];
-        return $this->model->saveDonor($params);
-    }
+    
 
     public function processSales(Request $request, Response $response, $args) {
 
@@ -189,13 +168,13 @@ class PaymentController {
         $data = json_decode($request->getBody(), true);
 
         if ($donor_id === 0) {
-            $donor = $this->model->getDonorByEmailPostalCode($data['email'], $data['postal_code']);
+            $donor = $this->model->getDonorByUsername($data['email']);
             if ($donor === null) {
                 //Create Donor
                 $donor = $this->saveDonor($data);
             }
         } else {
-            $donor = $this->model->getDonor($donor_id);   
+            $donor = $this->model->getDonor($donor_id);
         }
         $donation = new \stdClass();
 
@@ -313,11 +292,11 @@ class PaymentController {
             $this->model->saveTransactionHistory($paymentRtnObject);
             return $response->withHeader('Content-Type', 'application/json');
         } catch (ApiException $ex) {
-            $response->getBody()->write(json_encode(ApiResponse::error("Server error, please try again.")));
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
             // Handle any other exceptions
-            $response->getBody()->write(json_encode(ApiResponse::error("Server processing error")));
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
@@ -333,4 +312,6 @@ class PaymentController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         }
     }
+
+    
 }

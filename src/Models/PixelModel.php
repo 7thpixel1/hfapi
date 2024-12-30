@@ -72,7 +72,6 @@ class PixelModel {
     }
 
     public function isAuthorized($username, $password) {
-
         $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,city,state,country,username,date_of_birth, password_hash"
                 . " FROM donors WHERE email = :username AND status = :status AND can_login = :can_login";
 
@@ -82,13 +81,26 @@ class PixelModel {
             ':can_login' => 1
         ];
         $this->db->query($sql, $params);
-        $user = $this->db->fetch();
+        $user = $this->db->fetchObject();
 
-        if ($user && $this->verifyPassword($password, $user['password_hash'])) {
-            unset($user['password_hash']);
+        if ($user && $this->verifyPassword($password, $user->password_hash)) {
+            unset($user->password_hash);
             return $user;
         }
         return null;
+    }
+
+    public function updatelastLogin($object) {
+        // Update the receipt status
+        $sqlUpdateDonor = "UPDATE donors 
+                                 SET last_login = :last_login, last_meta_info = :last_meta_info
+                                 WHERE id = :donor_id";
+
+        $this->db->query($sqlUpdateDonor, [
+            'last_login' => date('Y-m-d H:i:s'),
+            'last_meta_info' => $object->last_meta_info,
+            'donor_id' => $object->donor_id
+        ]);
     }
 
     private function verifyPassword($password, $hash) {
@@ -122,20 +134,16 @@ class PixelModel {
     }
 
     public function donations($object) {
-
         $sql = "SELECT a.id,a.parent_id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, a.batch_id, a.status, a.parent_id AS donation_id, a.donor_id, 
                         a.eligible_amount, a.issuer_name, IFNULL(a.fee, 0) AS fee, b.first_name, b.last_name, b.refrence_id, b.type, 
                         c.number, CONCAT(d.first_name, ' ', d.last_name) AS auth_name, p.name AS project_name, ba.batch_number, b.email, b.cell, 
                         b.address1, b.postal_code, a.city AS city_name, a.state, br.name AS branch_name 
-
                 FROM donations a
                 LEFT JOIN donors b ON a.donor_id = b.id
                 LEFT JOIN batch ba ON a.batch_id = ba.id
                 LEFT JOIN receipt c ON a.receipt_id = c.id
                 LEFT JOIN users d ON a.created_by = d.id
                 LEFT JOIN project p ON a.project_id = p.id
-                LEFT JOIN cities ci ON b.city_id = ci.id
-                LEFT JOIN provinces st ON b.state_id = st.id
                 LEFT JOIN branches br ON b.branch_id = br.id
                 WHERE a.parent_id <> 0 AND a.donor_id = :donor_id
                 ORDER BY a.id DESC LIMIT " . (int) $this->offset . ", " . (int) $this->limit;
@@ -179,12 +187,8 @@ class PixelModel {
     }
 
     public function getDonation($object) {
-        $sql = "SELECT d.*, IFNULL(c.name, '') AS city_name, IFNULL(p.name, '') AS province, 
-                        IFNULL(cu.name, '') AS country 
+        $sql = "SELECT d.*, d.city AS city_name, d.state AS province
                 FROM donations d
-                LEFT JOIN cities c ON d.city_id = c.id
-                LEFT JOIN provinces p ON d.state_id = p.id
-                LEFT JOIN countries cu ON d.country_id = cu.id
                 WHERE d.id = :id AND d.donor_id = :donor_id AND d.parent_id = :parent_id";
         $params = [
             'id' => $object->id,
@@ -206,7 +210,6 @@ class PixelModel {
         $this->db->query($sql, ['donor_id' => $donor_id]);
         return $this->db->fetchObject() ?: null;
     }
-
 
     public function getDonorByUsername($email) {
         $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
@@ -307,9 +310,9 @@ class PixelModel {
                         date_of_birth, address1, address2, city_id, state_id, country_id, 
                         postal_code, email, home_phone, cell, refrence_id AS member_code, 
                         parent_id, 
-                        (SELECT name FROM cities WHERE id = donors.city_id) AS city_name,
-                        (SELECT name FROM provinces WHERE id = donors.state_id) AS state_name,
-                        (SELECT name FROM countries WHERE id = donors.country_id) AS country_name,
+                        city AS city_name,
+                        state AS state_name,
+                        country AS country_name,
                         (SELECT name FROM branches WHERE id = donors.branch_id) AS branch_name,
                         (SELECT name FROM select_types WHERE type = 'gender' AND id = donors.gender) AS gender 
                 FROM donors
@@ -437,14 +440,31 @@ class PixelModel {
         $this->db->query($sql, $params);
     }
 
+    public function updateDonorProvider($object) {
+        // Update the receipt status
+        $sqlUpdateDonor = "UPDATE donors 
+                                 SET can_login = 1, provider = :provider, provider_id = :provider_id,  access_token = :access_token, refresh_token = :refresh_token, email=:email
+                                 WHERE username = :email";
+
+        $this->db->query($sqlUpdateDonor, [
+            'provider' => $object->provider,
+            'provider_id' => $object->provider_id,
+            'access_token' => $object->access_token,
+            'refresh_token' => $object->refresh_token,
+            'email' => $object->username,
+        ]);
+    }
+
     public function saveDonor($donor) {
         try {
             // Start a transaction
             $this->db->beginTransaction();
             $sql = "INSERT INTO donors (title, first_name, last_name, business_name, date_of_birth, gender, address1, address2, city, state, country, postal_code, email, 
-                cell, type, source, branch_id, refrence_id, created_date, created_by, status, password_hash, can_login, email_status, last_login, meta_info) 
+                cell, type, source, branch_id, refrence_id, created_date, created_by, status, password_hash, can_login, email_status, last_login, meta_info
+                ,username ,provider, provider_id, access_token, refresh_token) 
                     VALUES (:title, :first_name, :last_name, :business_name, :date_of_birth, :gender, :address1, :address2, :city, :state, :country, :postal_code, :email, 
-                    :cell, :type, :source, :branch_id, :refrence_id, :created_date, :created_by, :status, :password_hash, :can_login, :email_status, :last_login, :meta_info)";
+                    :cell, :type, :source, :branch_id, :refrence_id, :created_date, :created_by, :status, :password_hash, :can_login, :email_status, :last_login, :meta_info
+                    ,:username, :provider, :provider_id, :access_token, :refresh_token)";
 
             $params = [
                 'title' => $donor->title,
@@ -472,7 +492,12 @@ class PixelModel {
                 'can_login' => 1,
                 'email_status' => 0,
                 'last_login' => date('Y-m-d H:i:s'),
-                'meta_info' => $donor->meta_info
+                'meta_info' => $donor->meta_info,
+                'username' => $donor->email,
+                'provider' => $donor->provider,
+                'provider_id' => $donor->provider_id,
+                'access_token' => $donor->access_token,
+                'refresh_token' => $donor->refresh_token,
             ];
 
             // Execute the query
@@ -482,13 +507,186 @@ class PixelModel {
             $this->db->commit();
 
             // Set the ID of the donor object
-            
+
             return $donor;
         } catch (PDOException $e) {
             $this->db->rollBack();
             throw $e;
         }
     }
+
+    public function updateDonor($donor) {
+        try {
+            $sqlUpdateDonor = "UPDATE donors 
+                                 SET 
+                                 title = :title,
+                                 first_name = :first_name, 
+                                 last_name = :last_name, 
+                                 business_name = :business_name, 
+                                 date_of_birth = :date_of_birth, 
+                                 gender = :gender, 
+                                 address1 = :address1, 
+                                 address2 = :address2, 
+                                 city = :city, 
+                                 state = :state, 
+                                 country = :country, 
+                                 postal_code = :postal_code,
+                                 cell = :cell,
+                                 branch_id = :branch_id,
+                                 refrence_id = :refrence_id
+                                 WHERE id = :donor_id";
+
+            $params = [
+                'title' => $donor->title,
+                'first_name' => $donor->first_name,
+                'last_name' => $donor->last_name,
+                'business_name' => $donor->business_name,
+                'date_of_birth' => $donor->date_of_birth ?? NULL,
+                'gender' => $donor->gender,
+                'address1' => $donor->address1,
+                'address2' => $donor->address2,
+                'city' => $donor->city,
+                'state' => $donor->state,
+                'country' => $donor->country,
+                'postal_code' => $donor->postal_code,
+                'cell' => $donor->cell,
+                'branch_id' => $donor->branch_id,
+                'refrence_id' => $donor->refrence_id,
+                'modified_date' => date('Y-m-d H:i:s'),
+                'modified_by' => 1
+            ];
+            $this->db->query($sqlUpdateDonor, $params);
+
+            return true;
+        } catch (PDOException $e) {
+            
+        }
+        return false;
+    }
+
+    /* Pwd reset methods */
+
+    public function getRowByToken($token) {
+
+        $sql = "SELECT * FROM password_resets 
+            WHERE token = :token 
+            AND expires_at > NOW() and status=0  LIMIT 1";
+        $this->db->query($sql, ['token' => $token]);
+        $result = $this->db->fetchObject();
+        if ($result !== false) {
+            return $result;
+        }
+
+        return null;
+    }
+
+    public function getValidPasswordResetToken($username) {
+
+        $sql = "SELECT token, expires_at FROM password_resets 
+            WHERE username = :username 
+            AND expires_at > NOW() and status=0  LIMIT 1";
+        $this->db->query($sql, ['username' => $username]);
+        $result = $this->db->fetchObject();
+        if ($result !== false) {
+            return $result->token;
+        }
+
+        return null;
+    }
+
+    public function isIpRateLimited($ip) {
+
+        $sql = "SELECT COUNT(*) as request_count FROM password_resets 
+            WHERE ip = :ip AND created_at > NOW() - INTERVAL 1 MINUTE";
+        $this->db->query($sql, ['ip' => $ip]);
+        $result = $this->db->fetchObject();
+
+        if ($result !== null && (int) $result->request_count >= 5) {
+            return true;
+        }
+        return false;
+    }
+
+    public function resetPwdRequest($object) {
+        try {
+            // Start a transaction
+            $this->db->beginTransaction();
+            $token = $this->getValidPasswordResetToken($object['email']);
+
+            if ($token === null) {
+                $sql = "INSERT INTO password_resets 
+                           (username, token, created_at, expires_at, meta_info, ip) 
+                    VALUES (:username, :token, :created_at, :expires_at, :meta_info, :ip)";
+
+                $currentDateTime = date('Y-m-d H:i:s');
+                $newDateTime = date('Y-m-d H:i:s', strtotime('+1 hour', strtotime($currentDateTime)));
+                $token = bin2hex(random_bytes(16));
+                $params = [
+                    'username' => $object['email'],
+                    'token' => $token,
+                    'created_at' => $currentDateTime,
+                    'expires_at' => $newDateTime,
+                    'meta_info' => $object['meta_info'] ?? null,
+                    'ip' => $object['ip'] ?? null
+                ];
+
+                $this->db->query($sql, $params);
+            }
+            // Commit the transaction
+            $this->db->commit();
+
+            return $token;
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function updatePwdRequest($object) {
+        try {
+            // Start a transaction
+            $this->db->beginTransaction();
+
+            $sqlUpdateDonor = "UPDATE donors SET password_hash = :password_hash WHERE id = :donor_id";
+            $this->db->query($sqlUpdateDonor, [
+                'password_hash' => $object->password_hash,
+                'donor_id' => $object->donor_id
+            ]);
+            $this->db->commit();
+            return true;
+            // Commit the transaction
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+        }
+        return false;
+    }
+
+    public function updateTokenRow($object) {
+        try {
+
+            $sqlUpdateToken = "UPDATE password_resets SET status = 1, reset_at = :reset_at WHERE id = :row_id AND status = 0";
+            $this->db->query($sqlUpdateToken, [
+                'reset_at' => date('Y-m-d H:i:s'),
+                'row_id' => $object->token_id
+            ]);
+            return true;
+            // Commit the transaction
+        } catch (PDOException $e) {
+            
+        }
+        return false;
+    }
+
+    /* // Update the receipt status
+      $sqlUpdateReceipt = "UPDATE receipt
+      SET status = 1, modified_date = :modified_date, modified_by = :modified_by
+      WHERE id = :receipt_id AND status = 0";
+
+      $this->db->query($sqlUpdateReceipt, [
+      'modified_date' => $object->created_date,
+      'modified_by' => $object->created_by,
+      'receipt_id' => $object->receipt_id
+      ]); */
 
     public function getReceiptId() {
         // First, try to get the minimum receipt ID
@@ -751,7 +949,7 @@ class PixelModel {
             'modified_date' => date('Y-m-d H:i:s'), // Current timestamp
             'modified_by' => 1,
             'status' => 1, // Assuming status is active (1)
-            'object' => gzencode(json_encode($data),9) // Store the full object as a JSON string
+            'object' => gzencode(json_encode($data), 9) // Store the full object as a JSON string
         ];
 
         // Execute the query

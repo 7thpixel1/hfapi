@@ -15,7 +15,8 @@
         "globalpayments/php-sdk": "^13.0",
         "guzzlehttp/guzzle": "^7.7",
         "sendgrid/sendgrid": "^8.1",
-        "phpmailer/phpmailer": "^6.9"
+        "phpmailer/phpmailer": "^6.9",
+        "monolog/monolog": "^3.8"
     },
     "autoload": {
         "psr-4": {

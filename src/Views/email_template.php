@@ -10,6 +10,21 @@
                         img {
                             height:auto;
                         }
+                        .button {
+                            display: inline-block;
+                            padding: 15px 25px;
+                            font-size: 18px;
+                            color: #ffffff;
+                            background-color: #0069b4;
+                            text-decoration: none;
+                            border-radius: 5px;
+                            text-align: center;
+                        }
+                        .note {
+                            margin-top: 10px;
+                            font-size: 14px;
+                            color: #555555;
+                        }
                         @media only screen and (max-width: 550px), screen and (max-device-width: 550px) {
                             .mobile-td{
                                 text-align:center!important;
@@ -37,7 +52,7 @@
 
                                         <tr><td height="100" width="100%" bgcolor="#FFFFFF" style="padding-left:20px;padding-right:20px;" valign="middle" class="mobile-td">
                                                 <a href="http://www.humanityfirstcanada.ca/" target="_blank">
-                                                    <img src="<?php echo $app_url;?>assets/images/report-logo.png" alt=""/>
+                                                    <img src="<?php echo $app_url; ?>assets/images/report-logo.png" alt=""/>
                                                 </a>
                                             </td></tr>
                                         <tr>

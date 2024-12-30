@@ -79,6 +79,7 @@ class ComposerStaticInit43c43a01c7335350cbbdbb77a20f1ce6
             'Mpdf\\PsrLogAwareTrait\\' => 22,
             'Mpdf\\PsrHttpMessageShim\\' => 24,
             'Mpdf\\' => 5,
+            'Monolog\\' => 8,
         ),
         'L' => 
         array (
@@ -255,6 +256,10 @@ class ComposerStaticInit43c43a01c7335350cbbdbb77a20f1ce6
         'Mpdf\\' => 
         array (
             0 => __DIR__ . '/..' . '/mpdf/mpdf/src',
+        ),
+        'Monolog\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/monolog/monolog/src/Monolog',
         ),
         'Laravel\\SerializableClosure\\' => 
         array (
