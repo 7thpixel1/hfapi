@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Controllers;
@@ -8,9 +9,7 @@ use App\Models\PixelModel;
 use App\Config\ApiResponse;
 use Mpdf\Mpdf;
 
-class DonationController {
-
-    private $model;
+class DonationController extends BaseController {
 
     public function __construct(PixelModel $model) {
         $this->model = $model;
@@ -19,16 +18,18 @@ class DonationController {
     public function getDonations(Request $request, Response $response, $args) {
         $donor_id = $request->getAttribute('user_id');
         $page = isset($args['page']) ? (int) $args['page'] : 1;
-        $this->model->setLimit(100);
+        $limit = 100;
+        $this->model->setLimit($limit);
         $this->model->setOffset($page);
         $donations = $this->model->donations((object) ["id" => $donor_id]);
+        $count = $this->model->donationsCount((object) ["id" => $donor_id]);
 
-        if ($donations) {
-            $response->getBody()->write(json_encode(ApiResponse::success(["donations" => $donations])));
+        if ($donations !== null) {
+            $response->getBody()->write(json_encode(ApiResponse::success(["donations" => $donations, "count" => $count])));
             return $response->withHeader('Content-Type', 'application/json');
         } else {
-            $response->getBody()->write(json_encode(ApiResponse::notFound()));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            $response->getBody()->write(json_encode(ApiResponse::success(["donations" => null, "count" => 0])));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
     }
 
@@ -55,8 +56,9 @@ class DonationController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
         }
     }
+
     public function sendDonation(Request $request, Response $response, $args) {
-        
+
         $donor_id = $args['donor_id'];
         $donation_id = $args['donation_id'];
         $queryParams = $request->getQueryParams();
@@ -64,23 +66,23 @@ class DonationController {
         $donation = $this->model->getDonation((object) ["id" => $donation_id, "donor_id" => $donor_id]);
         if ($donation) {
             $donor = $this->model->getDonor($donor_id);
-            
+
             $heading = 'Thank you for your donation';
             $name = $donor->first_name;
             $message = 'We have received your donation, thank you for supporting Humanity First. Your Official Receipt for income tax purposes is attached.';
-            $html = \App\Config\Pixel::renderView(__DIR__ . '/../Views/email_template.php', ['heading' => $heading, 'name' => $name, 'message' => $message, 'app_url'=>$_ENV['APP_URL']]);
+            $html = \App\Config\Pixel::renderView(__DIR__ . '/../Views/email_template.php', ['heading' => $heading, 'name' => $name, 'message' => $message, 'app_url' => $_ENV['APP_URL']]);
             $pdfContent = $this->generateDonationPDF($donation, $donor);
-            $emailObject =  new \stdClass();
+            $emailObject = new \stdClass();
             $emailObject->to = $donor->email;
             $emailObject->subject = $heading;
             $emailObject->body = $html;
-            $emailObject->pdfFilename = "HFC-".$donation->receipt_id.".pdf";
+            $emailObject->pdfFilename = "HFC-" . $donation->receipt_id . ".pdf";
             $emailObject->pdfContent = $pdfContent;
-            
-            $success = 202;//\App\Config\Pixel::sendEmailWithSendGrid($emailObject);
-            if($success === 202){
+
+            $success = 202; //\App\Config\Pixel::sendEmailWithSendGrid($emailObject);
+            if ($success === 202) {
                 $response->getBody()->write(json_encode(ApiResponse::success()));
-            }else{
+            } else {
                 $response->getBody()->write(json_encode(ApiResponse::error("email not sent")));
             }
             return $response->withHeader('Content-Type', 'application/json');
@@ -90,8 +92,8 @@ class DonationController {
         }
     }
 
-    private function generateDonationPDF($donation, $donor, $is_duplicate=1) {
-        
+    private function generateDonationPDF($donation, $donor, $is_duplicate = 1) {
+
         $receipt = $this->model->getReceipt($donation->receipt_id);
         $children = $this->model->getChildren($donation->id);
         $html = \App\Config\Pixel::renderView(__DIR__ . '/../Views/receipt.php', ['donation' => $donation, 'donor' => $donor, 'receipt' => $receipt, 'children' => $children]);
@@ -132,5 +134,33 @@ Canada Revenue Agency at www.cra-arc.gc.ca/charitiesandgiving</td>
 
         // Output the PDF to a string
         return $mpdf->Output('', 'S');
+    }
+
+    public function annualStatement(Request $request, Response $response, $args) {
+        $data = json_decode($request->getBody(), true);
+        try {
+            
+        } catch (ApiException $ex) {
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    public function recurringDonations(Request $request, Response $response, $args) {
+        $data = json_decode($request->getBody(), true);
+        try {
+            
+        } catch (ApiException $ex) {
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        } catch (\Exception $e) {
+            // Handle any other exceptions
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
     }
 }

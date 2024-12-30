@@ -22,6 +22,7 @@ class PixelModel {
 
     public function setOffset($page) {
         $this->offset = ((int) $page - 1) * $this->limit;
+        $this->offset = ((int) $this->offset <= 0) ? 0 : $this->offset;
     }
 
     public function setStart($start) {
@@ -71,7 +72,9 @@ class PixelModel {
     }
 
     public function isAuthorized($username, $password) {
-        $sql = "SELECT * FROM donors WHERE email = :username AND status = :status AND can_login = :can_login";
+
+        $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,city,state,country,username,date_of_birth, password_hash"
+                . " FROM donors WHERE email = :username AND status = :status AND can_login = :can_login";
 
         $params = [
             ':username' => $username,
@@ -119,14 +122,12 @@ class PixelModel {
     }
 
     public function donations($object) {
-        $sql = "SELECT a.id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, 
-                        a.batch_id, a.status, a.parent_id AS donation_id, a.donor_id, 
-                        a.eligible_amount, a.issuer_name, IFNULL(a.fee, 0) AS fee, 
-                        b.first_name, b.last_name, b.refrence_id, b.type, 
-                        c.number, CONCAT(d.first_name, ' ', d.last_name) AS auth_name, 
-                        p.name AS project_name, ba.batch_number, b.email, b.cell, 
-                        b.address1, b.postal_code, ci.name AS city_name, 
-                        st.name AS state, br.name AS branch_name 
+
+        $sql = "SELECT a.id,a.parent_id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, a.batch_id, a.status, a.parent_id AS donation_id, a.donor_id, 
+                        a.eligible_amount, a.issuer_name, IFNULL(a.fee, 0) AS fee, b.first_name, b.last_name, b.refrence_id, b.type, 
+                        c.number, CONCAT(d.first_name, ' ', d.last_name) AS auth_name, p.name AS project_name, ba.batch_number, b.email, b.cell, 
+                        b.address1, b.postal_code, a.city AS city_name, a.state, br.name AS branch_name 
+
                 FROM donations a
                 LEFT JOIN donors b ON a.donor_id = b.id
                 LEFT JOIN batch ba ON a.batch_id = ba.id
@@ -137,16 +138,44 @@ class PixelModel {
                 LEFT JOIN provinces st ON b.state_id = st.id
                 LEFT JOIN branches br ON b.branch_id = br.id
                 WHERE a.parent_id <> 0 AND a.donor_id = :donor_id
-                ORDER BY a.id DESC
-                LIMIT :offset, :limit";
+                ORDER BY a.id DESC LIMIT " . (int) $this->offset . ", " . (int) $this->limit;
 
         $params = [
-            ':donor_id' => $object->id,
-            ':offset' => (int) $this->offset,
-            ':limit' => (int) $this->limit
+            ':donor_id' => $object->id
         ];
+        //echo $this->printCompileQuery($sql, $params);
         $this->db->query($sql, $params);
         return $this->db->fetchAll() ?: null;
+    }
+
+    public function donationsCount($object) {
+        $sql = "SELECT count(a.id) as cnt
+                FROM donations a
+                LEFT JOIN donors b ON a.donor_id = b.id
+                LEFT JOIN batch ba ON a.batch_id = ba.id
+                LEFT JOIN receipt c ON a.receipt_id = c.id
+                LEFT JOIN users d ON a.created_by = d.id
+                LEFT JOIN project p ON a.project_id = p.id
+                LEFT JOIN branches br ON b.branch_id = br.id
+                WHERE a.parent_id <> 0 AND a.donor_id = :donor_id";
+
+        $params = [
+            ':donor_id' => $object->id
+        ];
+        //echo $this->printCompileQuery($sql, $params);
+        $this->db->query($sql, $params);
+        $result = $this->db->fetchObject();
+
+        return (int) $result->cnt;
+    }
+
+    public function printCompileQuery($sql, $params) {
+        foreach ($params as $key => $value) {
+            // Escape strings to prevent SQL syntax issues
+            $escapedValue = is_numeric($value) ? $value : "'" . addslashes($value) . "'";
+            $sql = str_replace($key, $escapedValue, $sql);
+        }
+        return $sql;
     }
 
     public function getDonation($object) {
@@ -167,35 +196,39 @@ class PixelModel {
     }
 
     public function getDonor($donor_id) {
-        $sql = "SELECT a.title, a.address1, a.address2, a.refrence_id, a.home_phone, 
-                        a.id AS value, a.email, a.postal_code, 
-                        CONCAT(a.last_name, ', ', a.first_name) AS label, 
-                        a.middle_name, a.last_name, a.first_name, 
-                        a.city as city_name, a.state AS province, a.country 
-                FROM donors a
-                WHERE a.id = :donor_id 
+        $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
+            gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label
+                FROM donors
+                WHERE id = :donor_id 
                 LIMIT 1";
 
         $this->db->query($sql, ['donor_id' => $donor_id]);
         return $this->db->fetchObject() ?: null;
     }
 
-    public function getDonorByEmailPostalCode($email, $postal_code) {
-        $cleaned_postal_code = substr(str_replace(' ', '', $postal_code), 0, 3);
-        $sql = "SELECT a.id, a.title, a.address1, a.address2, a.refrence_id, a.home_phone, 
-                        a.id AS value, a.email, a.postal_code, 
-                        CONCAT(a.last_name, ', ', a.first_name) AS label, 
-                        a.middle_name, a.last_name, a.first_name, 
-                        b.name AS city_name, c.name AS province, d.name AS country 
-                FROM donors a
-                JOIN cities b ON a.city_id = b.id
-                JOIN provinces c ON a.state_id = c.id
-                JOIN countries d ON a.country_id = d.id
-                WHERE (a.email = :email OR email_2 = :email) AND LEFT(REPLACE(a.postal_code, ' ', ''), 3) = :postal_code 
-                ORDER BY a.can_login desc
+
+    public function getDonorByUsername($email) {
+        $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
+            gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label
+                FROM donors 
+                WHERE (username = :email) and can_login = 1
                 LIMIT 1";
 
-        $this->db->query($sql, ['email' => $email, 'postal_code' => $cleaned_postal_code]);
+        $this->db->query($sql, ['email' => $email]);
+        return $this->db->fetchObject() ?: null;
+    }
+
+    public function getDonorByProvider($provider, $provider_id) {
+        $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
+            gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label
+                FROM donors 
+                WHERE (provider_id = :provider_id and provider = :provider)
+                LIMIT 1";
+
+        $this->db->query($sql, ['provider_id' => $provider_id, "provider" => $provider]);
         return $this->db->fetchObject() ?: null;
     }
 
