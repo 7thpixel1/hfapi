@@ -70,7 +70,7 @@ $app->get('/donation/{donation_id}', [DonationController::class, 'getDonation'])
 $app->get('/send-donation/{donation_id}/{donor_id}', [DonationController::class, 'sendDonation'])->add($jwtMiddleware);
 
 $app->post('/annual-statement', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
-$app->get('/recurring-donations/[/{page}]', [DonationController::class, 'getDonations'])->add($jwtMiddleware);
+$app->get('/rec-donations[/{page}]', [DonationController::class, 'getRecDonations'])->add($jwtMiddleware);
 
 
 

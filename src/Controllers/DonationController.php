@@ -31,6 +31,23 @@ class DonationController extends BaseController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
     }
+    public function getRecDonations(Request $request, Response $response, $args) {
+        $donor_id = $request->getAttribute('user_id');
+        $page = isset($args['page']) ? (int) $args['page'] : 1;
+        $limit = 100;
+        $this->model->setLimit($limit);
+        $this->model->setOffset($page);
+        $donations = $this->model->recDonations((object) ["id" => $donor_id]);
+        $count = $this->model->recDonationsCount((object) ["id" => $donor_id]);
+
+        if ($donations !== null) {
+            $response->getBody()->write(json_encode(ApiResponse::success(["donations" => $donations, "count" => $count])));
+            return $response->withHeader('Content-Type', 'application/json');
+        } else {
+            $response->getBody()->write(json_encode(ApiResponse::success(["donations" => null, "count" => 0])));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    }
 
     public function getDonation(Request $request, Response $response, $args) {
         $donor_id = $request->getAttribute('user_id');
@@ -42,7 +59,7 @@ class DonationController extends BaseController {
 
         if ($donation) {
             $donor = $this->model->getDonor($donor_id);
-            $pdfContent = $this->generateDonationPDF($donation, $donor);
+            $pdfContent = $this->generateDonationPDF($donation, $donor, $is_duplicate);
             // Return the PDF response
             $response = $response->withHeader('Content-Type', 'application/pdf');
             $response->getBody()->write($pdfContent);
@@ -126,7 +143,7 @@ Canada Revenue Agency at www.cra-arc.gc.ca/charitiesandgiving</td>
     </table>
 ');
         if ((int) $is_duplicate >= 1) {
-            $mpdf->SetWatermarkImage('./assets/images/duplicate.png', 0.5, true); // 0.1 is the opacity, true for all pages
+            $mpdf->SetWatermarkImage('./assets/images/duplicate.png', 0.5,0.5); // 0.1 is the opacity, true for all pages
             $mpdf->showWatermarkImage = true;
         }
         $mpdf->WriteHTML($html);

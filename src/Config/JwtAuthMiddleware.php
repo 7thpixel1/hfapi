@@ -48,6 +48,7 @@ class JwtAuthMiddleware implements MiddlewareInterface {
                 return $handler->handle($request);
             } catch (\Exception $e) {
                 $response = new SlimResponse();
+                //echo $e->getMessage();
                 $response->getBody()->write(json_encode(ApiResponse::unauthorized('Invalid token!')));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
             }

@@ -116,28 +116,11 @@ class PixelModel {
 
     /* Api Methods */
 
-    public function countDonations($object) {
-        $sql = "SELECT COUNT(a.id) AS records 
-                FROM donations a
-                LEFT JOIN donors b ON a.donor_id = b.id
-                LEFT JOIN batch ba ON a.batch_id = ba.id
-                LEFT JOIN users d ON a.created_by = d.id
-                LEFT JOIN receipt c ON a.receipt_id = c.id
-                LEFT JOIN project p ON a.project_id = p.id
-                WHERE a.parent_id <> 0 AND a.donor_id = :donor_id";
-
-        $stmt = $this->db->query($sql);
-        $stmt->execute(['donor_id' => $object->id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $row ? $row['records'] : 0;
-    }
-
     public function donations($object) {
         $sql = "SELECT a.id,a.parent_id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, a.batch_id, a.status, a.parent_id AS donation_id, a.donor_id, 
                         a.eligible_amount, a.issuer_name, IFNULL(a.fee, 0) AS fee, b.first_name, b.last_name, b.refrence_id, b.type, 
                         c.number, CONCAT(d.first_name, ' ', d.last_name) AS auth_name, p.name AS project_name, ba.batch_number, b.email, b.cell, 
-                        b.address1, b.postal_code, a.city AS city_name, a.state, br.name AS branch_name 
+                        b.address1, b.postal_code, a.city AS city_name, a.state, br.name AS branch_name, a.is_recurring 
                 FROM donations a
                 LEFT JOIN donors b ON a.donor_id = b.id
                 LEFT JOIN batch ba ON a.batch_id = ba.id
@@ -166,6 +149,55 @@ class PixelModel {
                 LEFT JOIN project p ON a.project_id = p.id
                 LEFT JOIN branches br ON b.branch_id = br.id
                 WHERE a.parent_id <> 0 AND a.donor_id = :donor_id";
+
+        $params = [
+            ':donor_id' => $object->id
+        ];
+        //echo $this->printCompileQuery($sql, $params);
+        $this->db->query($sql, $params);
+        $result = $this->db->fetchObject();
+
+        return (int) $result->cnt;
+    }
+
+    public function recDonations($object) {
+        $sql = "SELECT r.created_date, r.status,r.frequency, r.last_run, t.token_name, t.brand,  a.id, a.parent_id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, 
+                        a.batch_id, a.status, a.parent_id AS donation_id, a.donor_id, a.eligible_amount, a.issuer_name, IFNULL(a.fee, 0) AS fee, b.first_name, b.last_name, 
+                        b.refrence_id, b.type,  c.number, CONCAT(d.first_name, ' ', d.last_name) AS auth_name, p.name AS project_name, ba.batch_number, b.email,  b.cell,  b.address1, 
+                        b.postal_code, a.city AS city_name, a.state, br.name AS branch_name, a.is_recurring,
+                        DATE_ADD(IFNULL(r.last_run, r.created_date), INTERVAL r.frequency DAY) AS next_run
+                FROM recurring_donations r
+                JOIN donations a ON r.source_donation = a.parent_id
+                JOIN donor_tokens t on r.token_id=t.id
+                LEFT JOIN donors b ON a.donor_id = b.id
+                LEFT JOIN batch ba ON a.batch_id = ba.id
+                LEFT JOIN receipt c ON a.receipt_id = c.id
+                LEFT JOIN users d ON a.created_by = d.id
+                LEFT JOIN project p ON a.project_id = p.id
+                LEFT JOIN branches br ON b.branch_id = br.id
+                WHERE a.donor_id = :donor_id
+                ORDER BY a.id DESC LIMIT " . (int) $this->offset . ", " . (int) $this->limit;
+
+        $params = [
+            ':donor_id' => $object->id
+        ];
+        //echo $this->printCompileQuery($sql, $params);
+        $this->db->query($sql, $params);
+        return $this->db->fetchAll() ?: null;
+    }
+
+    public function recDonationsCount($object) {
+        $sql = "SELECT count(r.id) as cnt
+                FROM recurring_donations r
+                JOIN donations a ON r.source_donation = a.parent_id
+                JOIN donor_tokens t on r.token_id=t.id
+                LEFT JOIN donors b ON a.donor_id = b.id
+                LEFT JOIN batch ba ON a.batch_id = ba.id
+                LEFT JOIN receipt c ON a.receipt_id = c.id
+                LEFT JOIN users d ON a.created_by = d.id
+                LEFT JOIN project p ON a.project_id = p.id
+                LEFT JOIN branches br ON b.branch_id = br.id
+                WHERE a.donor_id = :donor_id";
 
         $params = [
             ':donor_id' => $object->id

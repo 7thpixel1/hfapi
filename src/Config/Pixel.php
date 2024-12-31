@@ -461,4 +461,24 @@ class Pixel {
             return 0;
         }
     }
+    public static function getPaymentTypeList() {
+
+        return array("1" => (object) array("id" => 1, "name" => "Cash"),
+            "2" => (object) array("id" => 2, "name" => "Cheque"),
+            "3" => (object) array("id" => 3, "name" => "Credit Card"),
+            "4" => (object) array("id" => 4, "name" => "PayPal"),
+            "5" => (object) array("id" => 5, "name" => "CanadaHelps"),
+            "6" => (object) array("id" => 6, "name" => "Moneris"),
+            "7" => (object) array("id" => 7, "name" => "Other"),
+        );
+    }
+    public static function getPaymentTypeById($id) {
+        try {
+            $array = self::getPaymentTypeList();
+            $object = $array[(int) $id];
+            return ($object === NULL) ? '' : $object->name;
+        } catch (Exception $e) {
+            return '';
+        }
+    }
 }

@@ -116,7 +116,7 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                                     </tr>
                                     <tr>
                                         <td><b>Payment Method</b>:</td>
-                                        <td><?php echo ($donation->deposit_type); ?></td>
+                                        <td><?php echo App\Config\Pixel::getPaymentTypeById($donation->deposit_type); ?></td>
                                     </tr>
                                     <tr>
                                         <td><b>Transaction Id</b>:</td>
