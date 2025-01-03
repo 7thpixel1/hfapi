@@ -89,14 +89,14 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                             <td colspan="2" style="height: 10px;line-height:10px;"></td>
                         </tr>
                         <tr>
-                            <td style="width:60%;font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 11px; color:#333;"><b>Received From:</b><br>
+                            <td style="font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 11px; color:#333;"><b>Received From:</b><br>
                                 <span style="font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 13px; color:#333;"><?php echo ($donor->first_name) ?> <?php echo ($donor->middle_name) ?> <?php echo ($donor->last_name) ?><br><br></span>
                                 <b>Address:</b><br><?php echo ($donation->address1) ?> <?php echo $unitApartment ?><br>
                                 <?php echo ($donation->city_name) ?> <?php echo ($donation->province) ?> <?php echo ($donation->postal_code) ?><br>
                                 <?php echo ($donation->country) ?><br><br>
                                 <b>Tel:</b> <?php echo ($donation->home_phone) ?><br><br><b>Email:</b><?php echo ($donation->email) ?><br>
                             </td>
-                            <td style="width:40%; font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 11px; color:#333;">
+                            <td style="font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 11px; color:#333;">
                                 <table cellpadding="3" style="width: 100%;">
                                     <tr>
                                         <td style="width: 50%;"><b>Date</b>:</td>
@@ -119,8 +119,8 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                                         <td><?php echo App\Config\Pixel::getPaymentTypeById($donation->deposit_type); ?></td>
                                     </tr>
                                     <tr>
-                                        <td><b>Transaction Id</b>:</td>
-                                        <td><?php //echo ($donation->cheque_trans_no) ?></td>
+                                      <td><!--  <b>Transaction Id</b>:</td>-->
+                                        <td><?php //echo substr($donation->cheque_trans_no,0,12); ?></td>
                                     </tr>
                                 </table>
                             </td>
