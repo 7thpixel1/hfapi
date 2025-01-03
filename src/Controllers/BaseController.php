@@ -28,7 +28,7 @@ class BaseController {
                     'address1' => $data['address1'],
                     'address2' => $data['address2'] ?? NULL,
                     'city' => $data['city'] ?? NULL,
-                    'state' => $data['province'] ?? NULL,
+                    'state' => $data['state'] ?? NULL,
                     'country' => $data['country'] ?? NULL,
                     'postal_code' => $data['postal_code'] ?? NULL,
                     'email' => $data['email'],

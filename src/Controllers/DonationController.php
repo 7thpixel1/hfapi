@@ -123,7 +123,7 @@ class DonationController extends BaseController {
         ]);
 
         $mpdf->SetHTMLFooter('
-    <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 10px; border-top: 0px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 9px; border-top: 0px;">
         <tr>
             <!-- Text on the left side -->
             <td style="text-align: left;">

@@ -42,6 +42,43 @@ CREATE TABLE `recurring_donations` (
   `last_run` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `global_payment_history` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `donor_id` bigint(20) DEFAULT NULL,
+  `donation_id` bigint(20) DEFAULT NULL,
+  `auth_amount` decimal(10,2) DEFAULT NULL,
+  `avail_balance` decimal(10,2) DEFAULT NULL,
+  `avs_code` varchar(10) DEFAULT NULL,
+  `balance_amt` decimal(10,2) DEFAULT NULL,
+  `batch_ref` varchar(50) DEFAULT NULL,
+  `card_type` varchar(10) DEFAULT NULL,
+  `card_last4` varchar(4) DEFAULT NULL,
+  `trans_type` varchar(10) DEFAULT NULL,
+  `ref_num` varchar(50) DEFAULT NULL,
+  `resp_code` varchar(10) DEFAULT NULL,
+  `resp_msg` varchar(255) DEFAULT NULL,
+  `date_created` datetime DEFAULT NULL,
+  `trans_auth_code` varchar(20) DEFAULT NULL,
+  `trans_id` varchar(50) DEFAULT NULL,
+  `fraud_mode` varchar(10) DEFAULT NULL,
+  `fraud_result` varchar(10) DEFAULT NULL,
+  `fraud_rule_1_key` varchar(50) DEFAULT NULL,
+  `fraud_rule_1_desc` varchar(100) DEFAULT NULL,
+  `fraud_rule_1_result` varchar(10) DEFAULT NULL,
+  `card_result` varchar(10) DEFAULT NULL,
+  `card_cvv_result` varchar(10) DEFAULT NULL,
+  `card_last4_detail` varchar(4) DEFAULT NULL,
+  `card_brand` varchar(10) DEFAULT NULL,
+  `card_avs_code` varchar(10) DEFAULT NULL,
+  `meta_info` varchar(500) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=78 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE `global_payment_history` 
+CHANGE COLUMN `card_last4` `card_last4` VARCHAR(20) NULL DEFAULT NULL ;
+ALTER TABLE `global_payment_history` 
+CHANGE COLUMN `card_last4_detail` `card_last4_detail` VARCHAR(20) NULL DEFAULT NULL ;
+
 ALTER TABLE `donations` 
 ADD COLUMN `city` VARCHAR(255) NOT NULL DEFAULT '' AFTER `is_online`,
 ADD COLUMN `state` VARCHAR(255) NOT NULL DEFAULT '' AFTER `city`,
@@ -149,6 +186,18 @@ CREATE TABLE `password_resets` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `token` (`token`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+ALTER TABLE `donors` 
+CHANGE COLUMN `city_id` `city_id` INT(11) NOT NULL DEFAULT 0 ,
+CHANGE COLUMN `state_id` `state_id` INT(11) NOT NULL DEFAULT 0 ,
+CHANGE COLUMN `country_id` `country_id` INT(11) NOT NULL DEFAULT 0 ;
+
+ALTER TABLE `donations` 
+CHANGE COLUMN `modified_date` `modified_date` DATETIME NULL ,
+CHANGE COLUMN `modified_by` `modified_by` INT(11) NULL ;
+
+ALTER TABLE `donations` 
+CHANGE COLUMN `cheque_trans_no` `cheque_trans_no` VARCHAR(64) NULL DEFAULT NULL ;
 
 
 

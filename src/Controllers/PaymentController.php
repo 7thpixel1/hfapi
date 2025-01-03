@@ -191,9 +191,9 @@ class PaymentController extends BaseController{
         $donation->eligible_amount = $data['eligible_amount'];
         $donation->address1 = $data['address1'];
         $donation->address2 = $data['address2'] ?? NULL;
-        $donation->city_id = $data['city'];
-        $donation->state_id = $data['province'];
-        $donation->country_id = $data['country'];
+        $donation->city = $data['city'];
+        $donation->state = $data['state'];
+        $donation->country = $data['country'];
         $donation->postal_code = $data['postal_code'];
         $donation->email = $data['email'];
         $donation->batch_id = 0; //Fix this
@@ -223,7 +223,7 @@ class PaymentController extends BaseController{
         $address->streetAddress1 = $data['address1'];
         $address->streetAddress2 = $data['address2'] ?? NULL;
         $address->city = $data['city'];
-        $address->state = $data['province'];
+        $address->state = $data['state'];
         $address->postalCode = $data['postal_code'];
         $address->country = $data['country'];
 
@@ -295,6 +295,9 @@ class PaymentController extends BaseController{
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
+            
+            echo $e->getMessage();
+            echo $e->getTraceAsString();
             // Handle any other exceptions
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);

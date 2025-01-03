@@ -22,7 +22,7 @@ class AuthController extends BaseController {
     }
 
     public function login(Request $request, Response $response, $args) {
-        /*{"username":"saqibahmaad@gmail.com","password":"zainAhmad041$","meta_info":"{\"ip\":\"127.0.0.1\",\"browser\":\"Chrome\",\"browserVersion\":\"131.0.0.0\",\"isMobile\":0,\"mobile\":\"\",\"osName\":\"Windows 10\",\"lang\":\"en\"}"}*/
+        /* {"username":"saqibahmaad@gmail.com","password":"zainAhmad041$","meta_info":"{\"ip\":\"127.0.0.1\",\"browser\":\"Chrome\",\"browserVersion\":\"131.0.0.0\",\"isMobile\":0,\"mobile\":\"\",\"osName\":\"Windows 10\",\"lang\":\"en\"}"} */
         $data = json_decode($request->getBody(), true);
         $username = $data['username'];
         $password = $data['password'];
@@ -52,13 +52,27 @@ class AuthController extends BaseController {
 
     public function serverToken(Request $request, Response $response) {
         $secretKey = $_ENV['secret_key'];
-        $payload = [
-            'role' => 'server',
-            'type' => 'non-expiring'
-        ];
-        $serverToken = JWT::encode($payload, $this->secret_key, 'HS256');
-        $response->getBody()->write(json_encode(['server_token' => $serverToken]));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        try {
+
+            $payload = [
+                'role' => 'server',
+                'type' => 'non-expiring'
+            ];
+            $serverToken = JWT::encode($payload, $this->secret_key, 'HS256');
+            $response->getBody()->write(json_encode(['server_token' => $serverToken]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (ApiException $ex) {
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        } catch (\Exception $e) {
+            // Handle any other exceptions\
+            //$this->_logger->error($e->getMessage(), ['exception' => $e]);
+            echo $e->getMessage();
+            echo $e->getTraceAsString();
+
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
     }
 
     public function oAuthRegisterDonor(Request $request, Response $response, $args) {
@@ -67,8 +81,8 @@ class AuthController extends BaseController {
 
             $donor = $this->model->getDonorByUsername($data['email']);
             if ($donor === null) {
-                $donor = $this->saveDonor($data);
-                unset($donor->password_hash, $donor->meta_info, $donor->created_date);
+                $this->saveDonor($data);
+                $donor = $this->model->getDonorByUsername($data['email']);
             } else {//update
                 $donor->provider = $data['provider'];
                 $donor->provider_id = $data['provider_id'];
@@ -80,7 +94,7 @@ class AuthController extends BaseController {
 
             $meta_info = $data['meta_info'] ?? NULL;
             $this->model->updatelastLogin((object) ["last_meta_info" => $meta_info, "donor_id" => $donor->id]);
-            
+
             $payload = [
                 'iat' => $this->issue_at,
                 'exp' => $this->expration_time,
@@ -97,6 +111,9 @@ class AuthController extends BaseController {
         } catch (\Exception $e) {
             // Handle any other exceptions\
             //$this->_logger->error($e->getMessage(), ['exception' => $e]);
+            //echo $e->getMessage();
+            //echo $e->getTraceAsString();
+            
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
@@ -108,8 +125,9 @@ class AuthController extends BaseController {
 
             $donor = $this->model->getDonorByUsername($data['email']);
             if ($donor === null) {
-                $donor = $this->saveDonor($data);
-                unset($donor->password_hash, $donor->meta_info, $donor->created_date);
+                $this->saveDonor($data);
+                $donor = $this->model->getDonorByUsername($data['email']);
+                
                 $payload = [
                     'iat' => $this->issue_at,
                     'exp' => $this->expration_time,
@@ -226,6 +244,7 @@ class AuthController extends BaseController {
 
     public function changePassword(Request $request, Response $response, $args) {
         /* {
+          "old_password": "7thPixel",
           "password": "7thPixel"
           } */
         $donor_id = $request->getAttribute('user_id');
@@ -233,18 +252,25 @@ class AuthController extends BaseController {
         try {
             $donor = $this->model->getDonor($donor_id);
             $data = json_decode($request->getBody(), true);
+            
             if ($donor !== null) {
+                $donorAuthorized = $this->model->isAuthorized($donor->username, $data['old_password']);
+                if ($donorAuthorized !== null) {
 
-                $object = new \stdClass();
-                $object->donor_id = $donor->id;
-                $object->password_hash = password_hash($data['password'], PASSWORD_BCRYPT, ['cost' => 10]);
-                $this->model->updatePwdRequest($object);
+                    $object = new \stdClass();
+                    $object->donor_id = $donor->id;
+                    $object->password_hash = password_hash($data['password'], PASSWORD_BCRYPT, ['cost' => 10]);
+                    $this->model->updatePwdRequest($object);
 
-                $response->getBody()->write(json_encode(ApiResponse::success(null, "Your password has been successfully updated.")));
-                return $response->withHeader('Content-Type', 'application/json');
-            } else {//donor not found
+                    $response->getBody()->write(json_encode(ApiResponse::success(null, "Your password has been successfully updated.")));
+                    return $response->withHeader('Content-Type', 'application/json');
+                } else {//old password doesnot match not found
+                    $response->getBody()->write(json_encode(ApiResponse::error("The current password you entered is incorrect. Please double-check and try again.")));
+                    return $response->withHeader('Content-Type', 'application/json');
+                }
+            } else {
                 $response->getBody()->write(json_encode(ApiResponse::success(null, "donor not found.", 404)));
-                return $response->withHeader('Content-Type', 'application/json');
+                    return $response->withHeader('Content-Type', 'application/json');
             }
         } catch (ApiException $ex) {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
@@ -264,18 +290,22 @@ class AuthController extends BaseController {
             $donor = $this->model->getDonor($donor_id);
             $data = json_decode($request->getBody(), true);
             if ($donor !== null) {
+                $data['donor_id'] = $donor->id;
                 $this->model->updateDonor((object) $data);
-                $response->getBody()->write(json_encode(ApiResponse::success(null, "Your profile has been successfully updated.")));
+                $donor = $this->model->getDonor($donor_id);
+                $response->getBody()->write(json_encode(ApiResponse::success(["donor" => $donor], "Your profile has been successfully updated.")));
                 return $response->withHeader('Content-Type', 'application/json');
             } else {//donor not found
-                $response->getBody()->write(json_encode(ApiResponse::success(null, "donor not found.", 404)));
-                return $response->withHeader('Content-Type', 'application/json');
+                $response->getBody()->write(json_encode(ApiResponse::notFound("donor not found.")));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
             }
         } catch (ApiException $ex) {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
             // Handle any other exceptions
+            echo $e->getMessage();
+            echo $e->getTraceAsString();
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }

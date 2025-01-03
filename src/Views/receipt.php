@@ -120,7 +120,7 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
                                     </tr>
                                     <tr>
                                         <td><b>Transaction Id</b>:</td>
-                                        <td><?php echo ($donation->cheque_trans_no) ?></td>
+                                        <td><?php //echo ($donation->cheque_trans_no) ?></td>
                                     </tr>
                                 </table>
                             </td>

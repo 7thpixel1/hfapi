@@ -1,4 +1,10 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+ini_set('log_errors', '1');
+ini_set('error_log', '/var/www/api/public/logs/php_errors.log');
+
 use DI\Container;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -69,7 +75,7 @@ $app->get('/donations[/{page}]', [DonationController::class, 'getDonations'])->a
 $app->get('/donation/{donation_id}', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
 $app->get('/send-donation/{donation_id}/{donor_id}', [DonationController::class, 'sendDonation'])->add($jwtMiddleware);
 
-$app->post('/annual-statement', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
+$app->post('/annual-statement/{year}', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
 $app->get('/rec-donations[/{page}]', [DonationController::class, 'getRecDonations'])->add($jwtMiddleware);
 
 

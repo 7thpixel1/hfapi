@@ -8,7 +8,7 @@ class PixelModel {
 
     protected $db;
     protected $limit, $offset, $start, $new_id, $currentUser, $currentDate, $_stock_row;
-    public $table;
+    public $table, $id;
 
     public function __construct(Database $database) {
         $this->db = $database;
@@ -440,6 +440,8 @@ class PixelModel {
                     :card_brand, :card_avs_code, :meta_info
                 )";
         // Binding the data to the prepared statement
+        $datetime = new \DateTime($transactionData['timestamp']);
+        
         $params = [
             ':donor_id' => $transactionData['donorId'],
             ':donation_id' => $transactionData['donationId'],
@@ -454,7 +456,7 @@ class PixelModel {
             ':ref_num' => $transactionData['referenceNumber'] ?? null,
             ':resp_code' => $transactionData['responseCode'] ?? null,
             ':resp_msg' => $transactionData['responseMessage'] ?? null,
-            ':timestamp' => $transactionData['timestamp'] ?? null,
+            ':timestamp' => $datetime->format('Y-m-d H:i:s') ?? null,
             ':trans_auth_code' => $transactionData['transactionReference_authCode'] ?? null,
             ':trans_id' => $transactionData['transactionReference_transactionId'] ?? null,
             ':fraud_mode' => $transactionData['fraudFilterResponse_fraudResponseMode'] ?? null,
@@ -534,7 +536,7 @@ class PixelModel {
 
             // Execute the query
             $this->db->query($sql, $params);
-            $donor->id = $this->id = $this->db->lastInsertId();
+            $donor->id = $this->db->lastInsertId();
             // Commit the transaction
             $this->db->commit();
 
@@ -565,7 +567,9 @@ class PixelModel {
                                  postal_code = :postal_code,
                                  cell = :cell,
                                  branch_id = :branch_id,
-                                 refrence_id = :refrence_id
+                                 refrence_id = :refrence_id,
+                                 modifed_date =:modified_date,
+                                 modified_by =:modified_by
                                  WHERE id = :donor_id";
 
             $params = [
@@ -584,6 +588,7 @@ class PixelModel {
                 'cell' => $donor->cell,
                 'branch_id' => $donor->branch_id,
                 'refrence_id' => $donor->refrence_id,
+                'donor_id' => $donor->donor_id,
                 'modified_date' => date('Y-m-d H:i:s'),
                 'modified_by' => 1
             ];
@@ -780,9 +785,9 @@ class PixelModel {
 
             // Insert the main donation
             $sql = "INSERT INTO donations (amount,donor_id, non_eligible_amount, eligible_amount, sum_of_string, project_id, parent_id, created_date, created_by, receipt_id, receipt_date
-                ,deposit_type,batch_id, status,cheque_trans_no,address1, address2, city_id, state_id, country_id, postal_code, email, home_phone, is_online) 
+                ,deposit_type,batch_id, status,cheque_trans_no,address1, address2, city, state, country, postal_code, email, home_phone, is_online) 
                     VALUES (:amount,:donor_id, :non_eligible_amount, :eligible_amount, :sum_of_string, :project_id, :parent_id, :created_date, :created_by, :receipt_id,:receipt_date,
-                    :deposit_type,:batch_id, :status,:cheque_trans_no,:address1, :address2, :city_id, :state_id, :country_id, :postal_code, :email, :home_phone, :is_online)";
+                    :deposit_type,:batch_id, :status,:cheque_trans_no,:address1, :address2, :city, :state, :country, :postal_code, :email, :home_phone, :is_online)";
             $param = [
                 'amount' => $object->amount,
                 'donor_id' => $object->donor_id,
@@ -801,9 +806,9 @@ class PixelModel {
                 'cheque_trans_no' => $object->cheque_trans_no,
                 'address1' => $object->address1,
                 'address2' => $object->address2,
-                'city_id' => $object->city_id,
-                'state_id' => $object->state_id,
-                'country_id' => $object->country_id,
+                'city' => $object->city,
+                'state' => $object->state,
+                'country' => $object->country,
                 'postal_code' => $object->postal_code,
                 'email' => $object->email,
                 'home_phone' => $object->home_phone,
@@ -816,9 +821,9 @@ class PixelModel {
             foreach ($children as $item) {
                 $child = (object) $item;
                 $sqlChild = "INSERT INTO donations (amount,donor_id, non_eligible_amount, eligible_amount, sum_of_string, project_id, parent_id, created_date, created_by, receipt_id, receipt_date
-                ,deposit_type,batch_id, status,cheque_trans_no,address1, address2, city_id, state_id, country_id, postal_code, email, home_phone, is_online) 
+                ,deposit_type,batch_id, status,cheque_trans_no,address1, address2, city, state, country, postal_code, email, home_phone, is_online) 
                     VALUES (:amount,:donor_id, :non_eligible_amount, :eligible_amount, :sum_of_string, :project_id, :parent_id, :created_date, :created_by, :receipt_id,:receipt_date,
-                    :deposit_type,:batch_id, :status,:cheque_trans_no,:address1, :address2, :city_id, :state_id, :country_id, :postal_code, :email, :home_phone, :is_online)";
+                    :deposit_type,:batch_id, :status,:cheque_trans_no,:address1, :address2, :city, :state, :country, :postal_code, :email, :home_phone, :is_online)";
 
                 $this->db->query($sqlChild,
                         [
@@ -839,9 +844,9 @@ class PixelModel {
                             'cheque_trans_no' => $object->cheque_trans_no,
                             'address1' => $object->address1,
                             'address2' => $object->address2,
-                            'city_id' => $object->city_id,
-                            'state_id' => $object->state_id,
-                            'country_id' => $object->country_id,
+                            'city' => $object->city,
+                            'state' => $object->state,
+                            'country' => $object->country,
                             'postal_code' => $object->postal_code,
                             'email' => $object->email,
                             'home_phone' => $object->home_phone,
