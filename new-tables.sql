@@ -79,6 +79,22 @@ CHANGE COLUMN `card_last4` `card_last4` VARCHAR(20) NULL DEFAULT NULL ;
 ALTER TABLE `global_payment_history` 
 CHANGE COLUMN `card_last4_detail` `card_last4_detail` VARCHAR(20) NULL DEFAULT NULL ;
 
+CREATE TABLE email_subscriptions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE, 
+    first_name VARCHAR(255) NULL, 
+    last_name VARCHAR(255) NULL, 
+    subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+    unsubscribed_at DATETIME NULL,
+    status TINYINT(1) DEFAULT 1, 
+    meta_info VARCHAR(500) NULL,
+    unsub_meta_info VARCHAR(500) NULL,
+    verification_token VARCHAR(255) NULL, 
+    verified_at DATETIME NULL
+);
+
+
+
 ALTER TABLE `donations` 
 ADD COLUMN `city` VARCHAR(255) NOT NULL DEFAULT '' AFTER `is_online`,
 ADD COLUMN `state` VARCHAR(255) NOT NULL DEFAULT '' AFTER `city`,

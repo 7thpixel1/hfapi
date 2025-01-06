@@ -1,0 +1,1 @@
+[2025-01-03T17:37:00.477945-05:00] HF_API.ERROR: App\Controllers\AuthController/serverToken: key must be a string when using hmac [] []

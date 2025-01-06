@@ -6,7 +6,7 @@
  */
 
 namespace App\Controllers;
-
+use App\Helpers\LoggerHelper;
 /**
  * Description of BaseController
  *
@@ -15,6 +15,10 @@ namespace App\Controllers;
 class BaseController {
     
     protected $model;
+    protected $logger;
+    public function __construct() {
+        $this->logger = LoggerHelper::getLogger(); 
+    }
     protected function saveDonor($data) {
         
         $pwd = $data['password_hash'] ?? \App\Config\Pixel::generateRandomString();

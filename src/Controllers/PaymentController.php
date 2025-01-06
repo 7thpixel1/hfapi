@@ -19,20 +19,18 @@ use GlobalPayments\Api\Entities\Enums\Environment;
 use GlobalPayments\Api\Utils\Logging\SampleRequestLogger;
 use GlobalPayments\Api\Utils\Logging\Logger;
 use GlobalPayments\Api\Entities\GpApi\AccessTokenInfo;
-use Monolog\Logger as MonologLogger;
-use Monolog\Handler\StreamHandler;
+
 
 class PaymentController extends BaseController{
 
     private $_errorMessage, $_api_url, $_gp_ver, $_logger;
 
     public function __construct(PixelModel $model) {
+        parent::__construct();
+
         $this->model = $model;
         $this->_api_url = $_ENV['GP_URL'];
         $this->_gp_ver = $_ENV['GP_VER'];
-
-//        $this->_logger = new MonologLogger('app_logger');
-//        $this->_logger->pushHandler(new StreamHandler(__DIR__ . '/logs/app.log', MonologLogger::DEBUG));
 
         $this->initGateway();
     }
@@ -295,10 +293,13 @@ class PaymentController extends BaseController{
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
-            
-            echo $e->getMessage();
-            echo $e->getTraceAsString();
-            // Handle any other exceptions
+            // Handle any other exceptions\
+            //echo $e->getTraceAsString();
+            //echo $e->getMessage();
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }

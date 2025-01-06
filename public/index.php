@@ -1,11 +1,11 @@
 <?php
 /*
-error_reporting(E_ALL);
+error_reporting(1);
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 ini_set('log_errors', '1');
-ini_set('error_log', '/var/www/api/public/logs/php_errors.log');*/
-
+ini_set('error_log', '/var/www/api/public/logs/php_errors.log');
+*/
 use DI\Container;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -17,7 +17,7 @@ use App\Controllers\DonationController;
 use App\Controllers\AuthController;
 use App\Controllers\PaymentController;
 use Dotenv\Dotenv;
-use App\Controllers\CustomErrorHandler;
+
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -62,10 +62,11 @@ $app->get('/', function (Request $request, Response $response, $args) {
 });
 
 
-$app->get('/server-token', [AuthController::class, 'serverToken']);
+//$app->get('/server-token', [AuthController::class, 'serverToken']);
 $app->post('/login', [AuthController::class, 'login'])->add($jwtMiddleware);
 $app->post('/oauth-donor', [AuthController::class, 'oAuthRegisterDonor'])->add($jwtMiddleware);
 $app->post('/register-donor', [AuthController::class, 'registerDonor'])->add($jwtMiddleware);
+$app->post('/volunteer-registration', [AuthController::class, 'volunteerRegistration'])->add($jwtMiddleware);
 $app->post('/forgot-password', [AuthController::class, 'forgotPassword'])->add($jwtMiddleware);
 $app->post('/reset-password', [AuthController::class, 'resetPassword'])->add($jwtMiddleware);// without old password 
 $app->post('/change-password', [AuthController::class, 'changePassword'])->add($jwtMiddleware);//token should be donorToken
@@ -75,8 +76,7 @@ $app->post('/update-profile', [AuthController::class, 'updateProfile'])->add($jw
 $app->get('/donations[/{page}]', [DonationController::class, 'getDonations'])->add($jwtMiddleware);
 $app->get('/donation/{donation_id}', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
 $app->get('/send-donation/{donation_id}/{donor_id}', [DonationController::class, 'sendDonation'])->add($jwtMiddleware);
-
-$app->post('/annual-statement/{year}', [DonationController::class, 'getDonation'])->add($jwtMiddleware);
+$app->get('/annual-statement/{year}', [DonationController::class, 'annualStatement'])->add($jwtMiddleware);
 $app->get('/rec-donations[/{page}]', [DonationController::class, 'getRecDonations'])->add($jwtMiddleware);
 
 

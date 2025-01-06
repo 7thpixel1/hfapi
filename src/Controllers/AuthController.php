@@ -13,6 +13,7 @@ class AuthController extends BaseController {
     private $secret_key, $token_life, $issue_at, $expration_time;
 
     public function __construct(PixelModel $model) {
+        parent::__construct();
         $this->model = $model;
         $this->secret_key = $_ENV['secret_key'];
         $this->token_life = $_ENV['TOKEN_LIFE'];
@@ -22,7 +23,7 @@ class AuthController extends BaseController {
     }
 
     public function login(Request $request, Response $response, $args) {
-        /* {"username":"saqibahmaad@gmail.com","password":"zainAhmad041$","meta_info":"{\"ip\":\"127.0.0.1\",\"browser\":\"Chrome\",\"browserVersion\":\"131.0.0.0\",\"isMobile\":0,\"mobile\":\"\",\"osName\":\"Windows 10\",\"lang\":\"en\"}"} */
+        /* {"username":"saqibahmaad@gmail.com","password":"zain","meta_info":"{\"ip\":\"127.0.0.1\",\"browser\":\"Chrome\",\"browserVersion\":\"131.0.0.0\",\"isMobile\":0,\"mobile\":\"\",\"osName\":\"Windows 10\",\"lang\":\"en\"}"} */
         $data = json_decode($request->getBody(), true);
         $username = $data['username'];
         $password = $data['password'];
@@ -51,7 +52,7 @@ class AuthController extends BaseController {
     }
 
     public function serverToken(Request $request, Response $response) {
-        $secretKey = $_ENV['secret_key'];
+
         try {
 
             $payload = [
@@ -59,6 +60,7 @@ class AuthController extends BaseController {
                 'type' => 'non-expiring'
             ];
             $serverToken = JWT::encode($payload, $this->secret_key, 'HS256');
+
             $response->getBody()->write(json_encode(['server_token' => $serverToken]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         } catch (ApiException $ex) {
@@ -66,10 +68,10 @@ class AuthController extends BaseController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
             // Handle any other exceptions\
-            //$this->_logger->error($e->getMessage(), ['exception' => $e]);
-            echo $e->getMessage();
-            echo $e->getTraceAsString();
-
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
@@ -110,10 +112,11 @@ class AuthController extends BaseController {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
             // Handle any other exceptions\
-            //$this->_logger->error($e->getMessage(), ['exception' => $e]);
-            //echo $e->getMessage();
-            //echo $e->getTraceAsString();
-            
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
+
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
@@ -127,7 +130,7 @@ class AuthController extends BaseController {
             if ($donor === null) {
                 $this->saveDonor($data);
                 $donor = $this->model->getDonorByUsername($data['email']);
-                
+
                 $payload = [
                     'iat' => $this->issue_at,
                     'exp' => $this->expration_time,
@@ -145,6 +148,11 @@ class AuthController extends BaseController {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
+            // Handle any other exceptions\
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             $response->getBody()->write(json_encode(ApiResponse::error("Error occured while processing your request.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
@@ -177,6 +185,11 @@ class AuthController extends BaseController {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
+            // Handle any other exceptions\
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
@@ -236,6 +249,11 @@ class AuthController extends BaseController {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
+            // Handle any other exceptions\
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             // Handle any other exceptions
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
@@ -252,7 +270,7 @@ class AuthController extends BaseController {
         try {
             $donor = $this->model->getDonor($donor_id);
             $data = json_decode($request->getBody(), true);
-            
+
             if ($donor !== null) {
                 $donorAuthorized = $this->model->isAuthorized($donor->username, $data['old_password']);
                 if ($donorAuthorized !== null) {
@@ -270,13 +288,17 @@ class AuthController extends BaseController {
                 }
             } else {
                 $response->getBody()->write(json_encode(ApiResponse::success(null, "donor not found.", 404)));
-                    return $response->withHeader('Content-Type', 'application/json');
+                return $response->withHeader('Content-Type', 'application/json');
             }
         } catch (ApiException $ex) {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
-            // Handle any other exceptions
+            // Handle any other exceptions\
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
@@ -303,10 +325,41 @@ class AuthController extends BaseController {
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         } catch (\Exception $e) {
-            // Handle any other exceptions
-            echo $e->getMessage();
-            echo $e->getTraceAsString();
+            // Handle any other exceptions\
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
             $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred on the server. Please try again later. If the problem persists, please contact support.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    public function volunteerRegistration(Request $request, Response $response, $args) {
+        $data = json_decode($request->getBody(), true);
+        try {
+
+            $volunteer_id = $this->model->saveVolunteerRegistration($data);
+            
+            $availibility = $data['availibility'];
+            if (@count($availibility) > 0) {
+                foreach ($availibility as $a) {
+                    $this->model->saveVolunteerAvailability($a, $volunteer_id);
+                }
+            }
+            
+            $response->getBody()->write(json_encode(ApiResponse::success()));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (ApiException $ex) {
+            $response->getBody()->write(json_encode(ApiResponse::error("An unexpected error occurred while processing your request. Please try again later.")));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        } catch (\Exception $e) {
+            // Handle any other exceptions\
+            $this->logger->error(__CLASS__ . "\\" . __FUNCTION__ . ": " . $e->getMessage() . " Line: " . $e->getLine());
+            if ((int) $_ENV['APP_DEBUG'] === 1) {
+                $this->logger->error($e->getTraceAsString());
+            }
+            $response->getBody()->write(json_encode(ApiResponse::error("Error occured while processing your request.")));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }

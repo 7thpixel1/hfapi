@@ -63,13 +63,13 @@ $unitApartment = (empty($donation->address2)) ? "" : ('address2') . " " . $donat
         </style>
     </head>
     <body>
-        <table style="padding:0px; background-image: url('./assets/images/duplicate.png'); background: no-repeat center center;" cellspacing="0" border="0" >
+        <table style="padding:0px;" cellspacing="0" border="0" >
             <tr>
                 <td>
                     <table cellpadding="0" cellspacing="0" border="0" >
 
                         <tr>
-                            <td style="font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 10px; color:#333; text-align: left; width: 60%">
+                            <td style="font-family:'Open Sans Condensed',Arial, Sans-Serif; text-align: left; width: 60%">
                                 <img src="./assets/images/report-logo.png" alt="Logo">
                             </td>
                             <td style="font-family:'Open Sans Condensed',Arial, Sans-Serif; font-size: 28px; color:#000; text-align: right;">

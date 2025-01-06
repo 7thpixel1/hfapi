@@ -116,6 +116,28 @@ class PixelModel {
 
     /* Api Methods */
 
+    public function getCRAAnnualStatementList($donor_id, $year) {
+        $sql = "SELECT a.id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, a.eligible_amount, a.batch_id,
+                   c.number, YEAR(a.receipt_date) AS year,
+                   (SELECT GROUP_CONCAT(p.name) FROM donations b, project p WHERE p.id = b.project_id AND b.parent_id = a.id) AS project_name
+            FROM donations a
+            INNER JOIN receipt c ON a.receipt_id = c.id
+            WHERE a.parent_id = 0
+              AND a.status = 0
+              AND a.donor_id = :donor_id
+              AND YEAR(a.receipt_date) IN (:year)
+            GROUP BY YEAR(a.receipt_date), a.id
+            ORDER BY year DESC, a.id";
+
+        $params = [
+            ':donor_id' => $donor_id,
+            ':year' => $year
+        ];
+        //echo $this->printCompileQuery($sql, $params);
+        $this->db->query($sql, $params);
+        return $this->db->fetchAllObjects() ?: null;
+    }
+
     public function donations($object) {
         $sql = "SELECT a.id,a.parent_id, a.receipt_date, a.deposit_type, a.amount, a.non_eligible_amount, a.batch_id, a.status, a.parent_id AS donation_id, a.donor_id, 
                         a.eligible_amount, a.issuer_name, IFNULL(a.fee, 0) AS fee, b.first_name, b.last_name, b.refrence_id, b.type, 
@@ -234,7 +256,7 @@ class PixelModel {
     public function getDonor($donor_id) {
         $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
             gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
-            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label, home_phone, refrence_id
                 FROM donors
                 WHERE id = :donor_id 
                 LIMIT 1";
@@ -246,7 +268,7 @@ class PixelModel {
     public function getDonorByUsername($email) {
         $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
             gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
-            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label, home_phone, refrence_id
                 FROM donors 
                 WHERE (username = :email) and can_login = 1
                 LIMIT 1";
@@ -258,7 +280,7 @@ class PixelModel {
     public function getDonorByProvider($provider, $provider_id) {
         $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
             gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
-            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label, home_phone, refrence_id
                 FROM donors 
                 WHERE (provider_id = :provider_id and provider = :provider)
                 LIMIT 1";
@@ -379,8 +401,9 @@ class PixelModel {
                 'parent_id' => $data['parent_id']
             ];
             $this->db->query($sql, $params);
+            $id = $this->db->lastInsertId();
             $this->db->commit();
-            return $this->db->lastInsertId();
+            return $id;
         } catch (PDOException $e) {
             $this->db->rollBack();
             throw $e; // re-throw the exception for handling upstream
@@ -441,7 +464,7 @@ class PixelModel {
                 )";
         // Binding the data to the prepared statement
         $datetime = new \DateTime($transactionData['timestamp']);
-        
+
         $params = [
             ':donor_id' => $transactionData['donorId'],
             ':donation_id' => $transactionData['donationId'],
@@ -1033,6 +1056,63 @@ class PixelModel {
         $this->db->query($sql);
         $result = $this->db->fetchObject();
         return $result ? (int) $result->lastId + 1 : 1; // Increment the max ID or return 1 if none exists
+    }
+
+    public function saveVolunteerRegistration($data) {
+        try {
+            $this->db->beginTransaction();
+            $sql = "INSERT INTO volunteer_registration (first_name, last_name, gender, age, profession, 
+                    telephone_cell, email, postal_code, address, city, province, method_of_communication, 
+                    hear_about_us, volunteer_work, time_committed, employment_status, qualifications_skills, created_date) 
+                    VALUES (:first_name, :last_name, :gender, :age, :profession, 
+                    :telephone_cell, :email, :postal_code, :address, :city, :province, :method_of_communication, 
+                    :hear_about_us, :volunteer_work, :time_committed, :employment_status, :qualifications_skills, NOW())";
+            $params = [
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'gender' => $data['gender'],
+                'age' => $data['age'],
+                'profession' => $data['profession'],
+                'telephone_cell' => $data['telephone_cell'],
+                'email' => $data['email'],
+                'postal_code' => $data['postal_code'],
+                'address' => $data['address'],
+                'city' => $data['city'],
+                'province' => $data['province'],
+                'method_of_communication' => $data['method_of_communication'],
+                'hear_about_us' => $data['hear_about_us'],
+                'volunteer_work' => $data['volunteer_work'],
+                'time_committed' => $data['time_committed'],
+                'employment_status' => $data['employment_status'],
+                'qualifications_skills' => $data['qualifications_skills'],
+            ];
+            $this->db->query($sql, $params);
+            $id = $this->db->lastInsertId();
+            $this->db->commit();
+
+            return $id;
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function saveVolunteerAvailability($avalibility_id, $volunteer_id) {
+        try {
+            $this->db->beginTransaction();
+            $sql = "INSERT INTO volunteer_avalibility (volunteer_id, avalibility_id) 
+                    VALUES (:volunteer_id, :avalibility_id)";
+            $params = [
+                'volunteer_id' => $volunteer_id,
+                'avalibility_id' => $avalibility_id,
+            ];
+            $this->db->query($sql, $params);
+            $this->db->commit();
+            return true;
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 }
 
