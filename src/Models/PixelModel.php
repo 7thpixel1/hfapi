@@ -289,6 +289,18 @@ class PixelModel {
         return $this->db->fetchObject() ?: null;
     }
 
+    public function getDonorByToken($token) {
+        $sql = "SELECT id,title,first_name,last_name,middle_name,business_name,
+            gender,address1,address2,postal_code,cell,branch_id,refrence_id,status,parent_id,
+            city,state,country,username,date_of_birth,CONCAT(last_name, ', ', first_name) AS label, home_phone, refrence_id
+                FROM donors 
+                WHERE (activation_token = :token) and can_login = 1 and email_status=0 and status=0
+                LIMIT 1";
+
+        $this->db->query($sql, ['token' => $token]);
+        return $this->db->fetchObject() ?: null;
+    }
+
     public function getReceipt($receipt_id) {
         $sql = "SELECT a.id AS value, a.number AS label, a.number, b.last_name, b.first_name 
                 FROM receipt a
@@ -707,7 +719,7 @@ class PixelModel {
             // Start a transaction
             $this->db->beginTransaction();
 
-            $sqlUpdateDonor = "UPDATE donors SET password_hash = :password_hash WHERE id = :donor_id";
+            $sqlUpdateDonor = "UPDATE donors SET password_hash = :password_hash, status=1, email_status=1 WHERE id = :donor_id";
             $this->db->query($sqlUpdateDonor, [
                 'password_hash' => $object->password_hash,
                 'donor_id' => $object->donor_id
@@ -1113,6 +1125,96 @@ class PixelModel {
             $this->db->rollBack();
             throw $e;
         }
+    }
+
+    public function subscribeUser(array $data) {
+        try {
+            $this->db->beginTransaction();
+            $isExist = $this->getSubscriptionByEmail($data['email']);
+            if ($isExist === null) {
+
+                $sql = "INSERT INTO email_subscriptions 
+                (email, first_name, last_name, subscribed_at, meta_info, verification_token) 
+                VALUES 
+                (:email, :first_name, :last_name, NOW(), :meta_info,:verification_token)";
+
+                $params = [
+                    'email' => $data['email'],
+                    'first_name' => $data['first_name'] ?? NULL,
+                    'last_name' => $data['last_name'] ?? NULL,
+                    'meta_info' => $data['meta_info'],
+                    'verification_token' => $data['verification_token']
+                ];
+                $this->db->query($sql, $params);
+                $id = $this->db->lastInsertId();
+                $this->db->commit();
+                return $id;
+            } else {
+                return $isExist->id;
+            }
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function activateSubscription($token, $meta) {
+        $sql = "UPDATE email_subscriptions SET status = 1, meta_info=:meta_info, verified_at = NOW() WHERE verification_token = :token";
+        return $this->db->query($sql, [
+                    'token' => $token,
+                    'meta_info' => $meta
+        ]);
+    }
+
+    public function getSubscriptionByEmail($email) {
+        $sql = "SELECT *
+                FROM email_subscriptions
+                WHERE email = :email";
+        $params = [
+            'email' => $email
+        ];
+        $this->db->query($sql, $params);
+        return $this->db->fetchObject() ?: null;
+    }
+
+    public function getSubscriptionByToken($token) {
+        $sql = "SELECT *
+                FROM email_subscriptions
+                WHERE verification_token = :token LIMIT 1";
+        $params = [
+            'token' => $token
+        ];
+        $this->db->query($sql, $params);
+        return $this->db->fetchObject() ?: null;
+    }
+
+    public function unsubscribeUser(string $email, string $meta_info = null) {
+        $sql = "UPDATE email_subscriptions  SET status = 0, unsubscribed_at = NOW(), unsub_meta_info = :meta_info WHERE email = :email";
+        return $this->db->query($sql, [
+                    'email' => $email,
+                    'meta_info' => $meta_info
+        ]);
+    }
+
+    public function updateActivationToken(string $token, $donor_id) {
+        $sqlUpdateDonor = "UPDATE donors 
+                                 SET activation_token = :token
+                                 WHERE id = :donor_id";
+
+        return $this->db->query($sqlUpdateDonor, [
+                    'token' => $token,
+                    'donor_id' => $donor_id
+        ]);
+    }
+
+    public function activationEmail(string $token) {
+        $sqlUpdateDonor = "UPDATE donors 
+                                 SET email_status = 1, status = 1
+                                 WHERE activation_token = :token";
+
+        return $this->db->query($sqlUpdateDonor, [
+                    'token' => $token
+        ]);
     }
 }
 

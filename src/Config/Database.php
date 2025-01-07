@@ -28,7 +28,9 @@ class Database {
             echo "Connection failed: " . $e->getMessage();
         }
     }
-
+    public function getStatement() {
+        return $this->stmt; 
+    }
     public function query($sql, $params = []) {
         $this->stmt = $this->pdo->prepare($sql);
 
@@ -44,6 +46,7 @@ class Database {
         }
 
         $this->stmt->execute();
+        return $this->stmt->rowCount(); 
     }
 
     public function fetchAll() {

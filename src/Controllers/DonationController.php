@@ -166,10 +166,11 @@ Canada Revenue Agency at www.cra-arc.gc.ca/charitiesandgiving</td>
             $emailObject->to = $donor->email;
             $emailObject->subject = $heading;
             $emailObject->body = $html;
+            $emailObject->hasAttachment = true;
             $emailObject->pdfFilename = "HFC-" . $donation->receipt_id . ".pdf";
             $emailObject->pdfContent = $pdfContent;
 
-            $success = 202; //\App\Config\Pixel::sendEmailWithSendGrid($emailObject);
+            $success = \App\Config\Pixel::sendEmailWithSendGrid($emailObject);
             if ($success === 202) {
                 $response->getBody()->write(json_encode(ApiResponse::success()));
             } else {

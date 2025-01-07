@@ -169,6 +169,7 @@ class PaymentController extends BaseController{
             $donor = $this->model->getDonorByUsername($data['email']);
             if ($donor === null) {
                 //Create Donor
+                $data['email_status'] = 0;
                 $donor = $this->saveDonor($data);
             }
         } else {

@@ -44,7 +44,7 @@ class BaseController {
                     'status' => (int) ($data['status'] ?? NULL),
                     'password_hash' => $passwordHash,
                     'can_login' => 1,
-                    'email_status' => 0,
+                    'email_status' => (int)($data['email_status'] ?? NULL),
                     'opt_in' => (int) ($data['opt_in'] ?? NULL),
                     'meta_info' => $data['meta_info'] ?? NULL,
                     'username' => $data['email'],

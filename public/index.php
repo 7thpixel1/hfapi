@@ -66,6 +66,12 @@ $app->get('/', function (Request $request, Response $response, $args) {
 $app->post('/login', [AuthController::class, 'login'])->add($jwtMiddleware);
 $app->post('/oauth-donor', [AuthController::class, 'oAuthRegisterDonor'])->add($jwtMiddleware);
 $app->post('/register-donor', [AuthController::class, 'registerDonor'])->add($jwtMiddleware);
+$app->post('/activate-donor', [AuthController::class, 'activateDonor'])->add($jwtMiddleware);
+
+$app->post('/subscribe', [AuthController::class, 'subscribe'])->add($jwtMiddleware);
+$app->post('/activate-subscription', [AuthController::class, 'activateSubscription'])->add($jwtMiddleware);
+$app->post('/un-subscribe', [AuthController::class, 'un_subscribe'])->add($jwtMiddleware);
+
 $app->post('/volunteer-registration', [AuthController::class, 'volunteerRegistration'])->add($jwtMiddleware);
 $app->post('/forgot-password', [AuthController::class, 'forgotPassword'])->add($jwtMiddleware);
 $app->post('/reset-password', [AuthController::class, 'resetPassword'])->add($jwtMiddleware);// without old password 

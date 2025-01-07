@@ -410,12 +410,14 @@ class Pixel {
         $email->addContent("text/html", $object->body);
 
         // Attach the runtime-generated PDF
-        $email->addAttachment(
-                base64_encode($object->pdfContent),
-                "application/pdf",
-                $object->pdfFilename,
-                "attachment"
-        );
+        if($object->hasAttachment){
+            $email->addAttachment(
+                    base64_encode($object->pdfContent),
+                    "application/pdf",
+                    $object->pdfFilename,
+                    "attachment"
+            );
+        }
         $email->setReplyTo($_ENV['APP_EMAIL_REPLY'], $_ENV['APP_NAME']);
         $sendgrid = new \SendGrid($_ENV['SENDGRID']);
         try {
@@ -446,8 +448,9 @@ class Pixel {
             // Add Reply-To header
             $mail->addReplyTo($_ENV['APP_EMAIL_REPLY'], $_ENV['APP_NAME']);
 
-            // Attach the runtime-generated PDF
-            $mail->addStringAttachment($object->pdfContent, $object->pdfFilename, 'base64', 'application/pdf');
+            if($object->hasAttachment){
+                $mail->addStringAttachment($object->pdfContent, $object->pdfFilename, 'base64', 'application/pdf');
+            }
 
             // Content
             $mail->isHTML(true);

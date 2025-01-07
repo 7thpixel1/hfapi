@@ -86,12 +86,36 @@ CREATE TABLE email_subscriptions (
     last_name VARCHAR(255) NULL, 
     subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
     unsubscribed_at DATETIME NULL,
-    status TINYINT(1) DEFAULT 1, 
+    status TINYINT(1) DEFAULT 0, 
     meta_info VARCHAR(500) NULL,
     unsub_meta_info VARCHAR(500) NULL,
     verification_token VARCHAR(255) NULL, 
     verified_at DATETIME NULL
 );
+
+CREATE TABLE `email_queue` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `to_email` varchar(2500) NOT NULL,
+  `reply_to_email` varchar(256) DEFAULT NULL,
+  `sender_name` varchar(100) NOT NULL DEFAULT 'Humanity First Canada',
+  `subject` varchar(150) NOT NULL,
+  `message` blob NOT NULL,
+  `attempts` tinyint(1) NOT NULL DEFAULT 0,
+  `success` tinyint(1) NOT NULL DEFAULT 0,
+  `date_published` datetime NOT NULL,
+  `hash` varchar(60) NOT NULL,
+  `date_added` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_attempt` datetime DEFAULT NULL,
+  `date_sent` datetime DEFAULT NULL,
+  `attachment` varchar(256) NOT NULL,
+  `sent_by` int(11) NOT NULL DEFAULT 0,
+  `record_id` bigint(11) NOT NULL DEFAULT 0,
+  `error_message` varchar(500) DEFAULT NULL,
+  `queue_type` varchar(10) NOT NULL DEFAULT 'smtp',
+  PRIMARY KEY (`id`),
+  KEY `eml_suc_indx` (`attempts`,`success`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
 
 
 
@@ -156,6 +180,8 @@ ADD COLUMN `provider` VARCHAR(50) NULL AFTER `username`,
 ADD COLUMN `provider_id` VARCHAR(100) NULL AFTER `provider`,
 ADD COLUMN `access_token` TEXT NULL AFTER `provider_id`,
 ADD COLUMN `refresh_token` TEXT NULL AFTER `access_token`;
+ALTER TABLE `donors` 
+ADD COLUMN `activation_token` VARCHAR(45) NULL AFTER `last_meta_info`;
 
 
 -- copying unique emails in there

@@ -14,7 +14,7 @@
                             display: inline-block;
                             padding: 15px 25px;
                             font-size: 18px;
-                            color: #ffffff;
+                            color: #FFFFFF !important;
                             background-color: #0069b4;
                             text-decoration: none;
                             border-radius: 5px;
@@ -77,7 +77,7 @@
                                             </td></tr>
                                         <tr>
                                             <td style="color:#a2a2a2; font-family:'Open Sans',Arial, Sans-Serif; font-size: 14px;  text-align:left; line-height:22px; padding:30px;">
-                                                <b><br>Thank you,<br>Humanity First Canada</b><br><br><small>600 Bowes Rd. Unit 40,<br>Concord Ontario, L4K 4A3<br>Phone:416-440-0346<br>Fax:416-440-0346</small>
+                                                <b><br>Thank you,<br>Humanity First Canada</b><br><br><small>600 Bowes Rd. Unit 40,<br>Concord Ontario, L4K 4A3 Canada<br>Tel: +1 (416) 440-0346<br>Fax: +1 (416) 440-0346</small>
                                                                                     </td>
                                                                                     </tr>
                                                                                     </table>
@@ -85,29 +85,31 @@
                                                                                         <tr>
                                                                                             <td height="30" width="100%" style="padding-right:20px; padding-left:20px; background: #1bb4eb;" valign="middle">
                                                                                                 <p style="font-family:'Open Sans',Arial, Sans-Serif; font-weight: 400; font-size: 14px; text-align:center; color:#FFFFFF; line-height:20px; display:block; margin-top:1em; margin-bottom:1em;">
-                                                                                                    If you have any questions, please feel free to ask at: info@humanityfirst.ca
+                                                                                                    If you have any questions, please feel free to ask at: <a href="mailto:info@humanityfirst.ca" style="color:#FFFFFF;">info@humanityfirst.ca</a>
                                                                                                 </p>
                                                                                             </td>
                                                                                         </tr>
 
                                                                                         <tr>
-                                                                                            <td height="30" width="100%" bgcolor="" style="font-family:'Open Sans', Arial, Sans-Serif; font-size: 12px; text-align:center; color:#133c8c; line-height:16px; margin-top:1em; margin-bottom:1em; padding-right:20px; padding-left:20px;" valign="middle">
-                                                                                                <br>You are receiving this email because you transacted with Humanity First. Humanity First is a registered non-profit charitable organization. Humanity First is CASL-compliant. You may unsubscribe or change your email preferences
-                                                                                                    at any time by emailing to <a href="mailto:info@humanityfirst.ca">info@humanityfirst.ca</a>. Copyright &copy; '.date('Y').' Humanity First Canada.<br>
-                                                                                                        <b>Humanity First Canada | +1-416-440-0346 |<a href="mailto:info@humanityfirst.ca">info@humanityfirst.ca</a> | <a href="http://www.humanityfirst.ca/">www.humanityfirst.ca</a>
-                                                                                                            600 Bowes Road, #40, Concord, Ontario, L4K 4A3</b><br><br>
-                                                                                                                </td>
-                                                                                                                </tr>	
-                                                                                                                </table>						
+                                                                                            <td height="30" width="100%" bgcolor="" style="font-family:'Open Sans', Arial, Sans-Serif; font-size: 11px; text-align:center; color:#133c8c; line-height:16px; margin-top:1em; margin-bottom:1em; padding-right:20px; padding-left:20px;" valign="middle">
 
-                                                                                                                </td></tr></table>
+                                                                                                You are receiving this email because you transacted with Humanity First. Humanity First is a registered non-profit charitable organization. Humanity First is CASL-compliant. You may unsubscribe or change your email preferences
+                                                                                                at any time by emailing to <a href="mailto:info@humanityfirst.ca">info@humanityfirst.ca</a>. Copyright &copy; <?php echo date('Y'); ?> Humanity First Canada.<br>
+                                                                                                    <b>Humanity First Canada<br></b>
+                                                                                                    600 Bowes Road, #40, Concord, Ontario, L4K 4A3 Canada<br>
+                                                                                                        Tel: +1 (416) 440-0346, Email: <a href="mailto:info@humanityfirst.ca">info@humanityfirst.ca</a>, Website: <a href="http://www.humanityfirst.ca/">www.humanityfirst.ca</a>
+                                                                                                        </td>
+                                                                                                        </tr>	
+                                                                                                        </table>						
 
-                                                                                                                <!--[if (gte mso 9)|(IE)]>
-                                                                                                                          </td>
-                                                                                                                        </tr>
-                                                                                                                </table>
-                                                                                                                <![endif]-->		
+                                                                                                        </td></tr></table>
 
-                                                                                                                </body>
+                                                                                                        <!--[if (gte mso 9)|(IE)]>
+                                                                                                                  </td>
+                                                                                                                </tr>
+                                                                                                        </table>
+                                                                                                        <![endif]-->		
 
-                                                                                                                </html>
+                                                                                                        </body>
+
+                                                                                                        </html>
